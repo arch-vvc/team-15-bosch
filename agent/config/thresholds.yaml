@@ -27,6 +27,7 @@ anomaly:                   # used by the alert watcher, triage and verify alike
 alert:
   poll_interval_s: 15
   consecutive_points: 2
+  consecutive_points_latency: 4   # p95-only alerts need a full minute: one slow burst on a laptop is not an incident
 
 verify:
   window_s: 180            # span metrics lag by up to the rate window, so allow 3 minutes

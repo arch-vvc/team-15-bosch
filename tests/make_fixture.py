@@ -34,8 +34,15 @@ CONTAINER_DOWN = Path(__file__).parent / "fixtures" / "container_down.jsonl"
 
 
 def container_down_world() -> fakes.World:
-    """payment's container is stopped: no telemetry from it, checkout fails every charge."""
+    """A healthy world; apply stop_payment after taking the baseline."""
     w = fakes.World()
+    w.services = fakes.healthy_services()
+    w.traces = {"checkout": [], "frontend": []}
+    return w
+
+
+def stop_payment(w: fakes.World) -> None:
+    """payment's container is stopped: no telemetry from it, checkout fails every charge."""
     w.services = fakes.healthy_services()
     w.services["payment"]["rate"] = 0
     w.services["checkout"]["err"] = 1.0
@@ -46,16 +53,17 @@ def container_down_world() -> fakes.World:
     w.events = [fakes.docker_event("payment", "kill", fakes.T0 - 200, signal="15"),
                 fakes.docker_event("payment", "die", fakes.T0 - 199, exitCode="143"),
                 fakes.docker_event("payment", "stop", fakes.T0 - 199)]
-    return w
 
 
-def record(out: Path, world: fakes.World | None, every_tool: bool) -> None:
+def record(out: Path, world: fakes.World | None, every_tool: bool, after_baseline=None) -> None:
     out.parent.mkdir(exist_ok=True)
     out.unlink(missing_ok=True)
-    live, _ = fakes.backends(world)
+    live, w = fakes.backends(world)
     b = Backends(prom=Recorder(live.prom, "prom", out), jaeger=Recorder(live.jaeger, "jaeger", out),
                  docker=Recorder(live.docker, "docker", out), opensearch=None, clock=Recorder(live.clock, "clock", out))
     base = baseline_mod.compute(b, end_offset_min=20)
+    if after_baseline:
+        after_baseline(w)
     alert = detect.pick(detect.poll(b, base))
     tb = Toolbox(b, Ledger(), base)
     triage.snapshot(tb, alert)
@@ -67,7 +75,7 @@ def record(out: Path, world: fakes.World | None, every_tool: bool) -> None:
 
 def main() -> None:
     record(OUT, None, every_tool=True)
-    record(CONTAINER_DOWN, container_down_world(), every_tool=False)
+    record(CONTAINER_DOWN, container_down_world(), every_tool=False, after_baseline=stop_payment)
 
 
 if __name__ == "__main__":

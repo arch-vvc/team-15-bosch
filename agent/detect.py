@@ -74,6 +74,8 @@ def watch(b: Backends, baseline: Baseline, max_polls: int | None = None,
     then return the most severe such alert. Returns None if max_polls runs out first."""
     cfg = config.thresholds()["alert"]
     need, interval = cfg["consecutive_points"], cfg["poll_interval_s"]
+    # latency is noisy on a busy laptop; errors, stopped containers and restarts are not
+    need_for = lambda signal: cfg.get("consecutive_points_latency", need) if signal == "p95_ms" else need
     streak: dict[tuple[str, str], int] = {}
     polls = 0
     while max_polls is None or polls < max_polls:
@@ -88,7 +90,7 @@ def watch(b: Backends, baseline: Baseline, max_polls: int | None = None,
         streak = {k: streak.get(k, 0) + 1 for k in current}
         if on_poll:
             on_poll(b.now_dt(), candidates, dict(streak))
-        firing = [current[k] for k, n in streak.items() if n >= need]
+        firing = [current[k] for k, n in streak.items() if n >= need_for(k[1])]
         if firing:
             return pick(firing)
         sleep(interval)

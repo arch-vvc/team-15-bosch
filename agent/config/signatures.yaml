@@ -23,7 +23,7 @@ signatures:
     confidence: 0.9
     summary: The container is not running; its callers fail because it is gone.
     all:
-      - {signal: status, value_in: [exited, dead, missing, created]}
+      - {signal: status, value_in: [exited, dead, missing, created], direction: absent}
     missing: [docker exit code and last log lines before the exit]
 
   - id: oom_killed

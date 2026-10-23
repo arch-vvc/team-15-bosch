@@ -22,7 +22,7 @@ from agent.run import dependencies, handle
 from agent.tools import Toolbox
 from agent import triage
 from tests import fakes
-from tests.make_fixture import CONTAINER_DOWN, OUT as PAYMENT_FAILURE, container_down_world
+from tests.make_fixture import CONTAINER_DOWN, OUT as PAYMENT_FAILURE, container_down_world, stop_payment
 
 NOW = datetime.fromtimestamp(fakes.T0, timezone.utc)
 
@@ -50,7 +50,7 @@ def test_engine_names_payment_for_payment_failure():
 
 
 def test_engine_names_a_stopped_container():
-    tb, snap, _ = snapshot_for(container_down_world())
+    tb, snap, _ = snapshot_for(container_down_world(), after_baseline=stop_payment)
     d = Engine().diagnose(snap, tb.ledger)
     assert d.state == "CONFIDENT" and (d.hypotheses[0].component, d.hypotheses[0].cause) == ("payment", "container_down")
 
@@ -244,6 +244,7 @@ def test_full_loop_recovers_and_learns(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     b, world = fakes.backends(container_down_world())
     base = baseline_mod.compute(b, end_offset_min=10)
+    stop_payment(world)
     alert = detect.pick(detect.poll(b, base))
     adapter = FixingAdapter(world)
     approval = CliApproval(input_fn=lambda prompt: "y", print_fn=lambda s: None, operator="archit")

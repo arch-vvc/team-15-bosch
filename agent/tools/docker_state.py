@@ -99,8 +99,14 @@ def container_facts(c: ContainerStatus, base: dict, detail: bool) -> list[Fact]:
     a = config.thresholds()["anomaly"]
     compose_mb = config.services()["containers"].get(c.service, {}).get("mem_limit_mb")
     running = c.status in ("running", "unhealthy")
-    facts = [Fact(service=c.service, signal="status", value=c.status,
-                  direction="same" if c.status == "running" else "absent" if not running else "up")]
+    # a container that was already down at baseline (stopped on purpose, e.g. to save memory)
+    # is not a new symptom: only a change from the baseline state counts
+    was = base.get("status")
+    if c.status == "running" or (was is not None and was == c.status) or (was is not None and was != "running"):
+        status_dir = "same"
+    else:
+        status_dir = "absent" if not running else "up"
+    facts = [Fact(service=c.service, signal="status", value=c.status, direction=status_dir)]
     if c.restarts_since_baseline > 0 or detail:
         facts.append(Fact(service=c.service, signal="restarts", value=c.restarts,
                           baseline=float(c.restarts - c.restarts_since_baseline),
