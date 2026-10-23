@@ -1,0 +1,711 @@
+{
+  "report_type": "development_telemetry_observation",
+  "official_incident_schema": false,
+  "read_only": true,
+  "service": "checkout",
+  "window_start_unix": 1792749517.2218628,
+  "window_end_unix": 1792749817.2218628,
+  "evidence": [
+    {
+      "kind": "server_calls_per_second",
+      "source_url": "http://localhost:9090/api/v1/query",
+      "query": {
+        "query": "sum(rate(traces_span_metrics_calls_total{service_name=\"checkout\",span_kind=\"SPAN_KIND_SERVER\"}[300s]))",
+        "time": 1792749817.2218628
+      },
+      "window_start_unix": 1792749517.2218628,
+      "window_end_unix": 1792749817.2218628,
+      "collected_at": "2026-10-23T10:03:37.221874+00:00",
+      "observations": [
+        {
+          "timestamp": 1792749817.222,
+          "value": 0.024999895833767362
+        }
+      ],
+      "status": "observed",
+      "warnings": [],
+      "evidence_id": "ev_ced379842d3a7351"
+    },
+    {
+      "kind": "server_errors_per_second",
+      "source_url": "http://localhost:9090/api/v1/query",
+      "query": {
+        "query": "sum(rate(traces_span_metrics_calls_total{service_name=\"checkout\",span_kind=\"SPAN_KIND_SERVER\",status_code=\"STATUS_CODE_ERROR\"}[300s])) or (sum(rate(traces_span_metrics_calls_total{service_name=\"checkout\",span_kind=\"SPAN_KIND_SERVER\"}[300s])) * 0)",
+        "time": 1792749817.2218628
+      },
+      "window_start_unix": 1792749517.2218628,
+      "window_end_unix": 1792749817.2218628,
+      "collected_at": "2026-10-23T10:03:37.229724+00:00",
+      "observations": [
+        {
+          "timestamp": 1792749817.222,
+          "value": 0.0
+        }
+      ],
+      "status": "observed",
+      "warnings": [],
+      "evidence_id": "ev_c292d7cecbc53e12"
+    },
+    {
+      "kind": "server_p95_milliseconds",
+      "source_url": "http://localhost:9090/api/v1/query",
+      "query": {
+        "query": "histogram_quantile(0.95, sum by (le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name=\"checkout\",span_kind=\"SPAN_KIND_SERVER\"}[300s])))",
+        "time": 1792749817.2218628
+      },
+      "window_start_unix": 1792749517.2218628,
+      "window_end_unix": 1792749817.2218628,
+      "collected_at": "2026-10-23T10:03:37.231363+00:00",
+      "observations": [
+        {
+          "timestamp": 1792749817.222,
+          "value": 339.99999999999994
+        }
+      ],
+      "status": "observed",
+      "warnings": [],
+      "evidence_id": "ev_7a88504494157033"
+    },
+    {
+      "kind": "recent_traces",
+      "source_url": "http://localhost:8080/jaeger/ui/api/v3/traces",
+      "query": {
+        "query.serviceName": "checkout",
+        "query.startTimeMin": "2026-10-23T09:58:37.221863+00:00",
+        "query.startTimeMax": "2026-10-23T10:03:37.221863+00:00",
+        "query.searchDepth": 3
+      },
+      "window_start_unix": 1792749517.2218628,
+      "window_end_unix": 1792749817.2218628,
+      "collected_at": "2026-10-23T10:03:37.232944+00:00",
+      "observations": [
+        {
+          "trace_id": "b4fb134390b7a9d951131796e15010b4",
+          "span_id": "b6d57b0e0c436f5c",
+          "service": "checkout",
+          "operation": "oteldemo.CartService/GetCart",
+          "start_time_us": 1792749800596718.8,
+          "duration_us": 3241.334,
+          "peer_service": "172.21.0.20",
+          "rpc_service": null,
+          "child_services": [
+            "cart"
+          ],
+          "parent_span_ids": [
+            "f7ed53b9406e2820"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "b4fb134390b7a9d951131796e15010b4",
+          "span_id": "44a46316faf0235b",
+          "service": "checkout",
+          "operation": "oteldemo.ProductCatalogService/GetProduct",
+          "start_time_us": 1792749800600486.5,
+          "duration_us": 4236.5,
+          "peer_service": "172.21.0.21",
+          "rpc_service": null,
+          "child_services": [
+            "product-catalog"
+          ],
+          "parent_span_ids": [
+            "f7ed53b9406e2820"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "b4fb134390b7a9d951131796e15010b4",
+          "span_id": "3b9306a4ba63030a",
+          "service": "checkout",
+          "operation": "oteldemo.CurrencyService/Convert",
+          "start_time_us": 1792749800604811.8,
+          "duration_us": 1275.417,
+          "peer_service": "172.21.0.18",
+          "rpc_service": null,
+          "child_services": [
+            "currency"
+          ],
+          "parent_span_ids": [
+            "f7ed53b9406e2820"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "b4fb134390b7a9d951131796e15010b4",
+          "span_id": "641856c283b69596",
+          "service": "checkout",
+          "operation": "oteldemo.ProductCatalogService/GetProduct",
+          "start_time_us": 1792749800606104.2,
+          "duration_us": 6865.875,
+          "peer_service": "172.21.0.21",
+          "rpc_service": null,
+          "child_services": [
+            "product-catalog"
+          ],
+          "parent_span_ids": [
+            "f7ed53b9406e2820"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "b4fb134390b7a9d951131796e15010b4",
+          "span_id": "14b70f4b2d021ffa",
+          "service": "checkout",
+          "operation": "oteldemo.CurrencyService/Convert",
+          "start_time_us": 1792749800615209.5,
+          "duration_us": 1590.792,
+          "peer_service": "172.21.0.18",
+          "rpc_service": null,
+          "child_services": [
+            "currency"
+          ],
+          "parent_span_ids": [
+            "f7ed53b9406e2820"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "b4fb134390b7a9d951131796e15010b4",
+          "span_id": "693e96d096bd8b9d",
+          "service": "checkout",
+          "operation": "oteldemo.CurrencyService/Convert",
+          "start_time_us": 1792749800630978.2,
+          "duration_us": 4797.208,
+          "peer_service": "172.21.0.18",
+          "rpc_service": null,
+          "child_services": [
+            "currency"
+          ],
+          "parent_span_ids": [
+            "f7ed53b9406e2820"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "b4fb134390b7a9d951131796e15010b4",
+          "span_id": "c624f12052d9eef8",
+          "service": "checkout",
+          "operation": "oteldemo.PaymentService/Charge",
+          "start_time_us": 1792749800637450.0,
+          "duration_us": 3826.667,
+          "peer_service": "172.21.0.13",
+          "rpc_service": null,
+          "child_services": [
+            "payment"
+          ],
+          "parent_span_ids": [
+            "2b958e60af4d55a1"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "b4fb134390b7a9d951131796e15010b4",
+          "span_id": "5bf65529de3ec650",
+          "service": "checkout",
+          "operation": "oteldemo.CartService/EmptyCart",
+          "start_time_us": 1792749800644280.8,
+          "duration_us": 3469.5,
+          "peer_service": "172.21.0.20",
+          "rpc_service": null,
+          "child_services": [
+            "cart"
+          ],
+          "parent_span_ids": [
+            "2b958e60af4d55a1"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "b4fb134390b7a9d951131796e15010b4",
+          "span_id": "2b958e60af4d55a1",
+          "service": "checkout",
+          "operation": "oteldemo.CheckoutService/PlaceOrder",
+          "start_time_us": 1792749800590409.0,
+          "duration_us": 65607.334,
+          "peer_service": "172.21.0.23",
+          "rpc_service": null,
+          "child_services": [],
+          "parent_span_ids": [
+            "66752b0cf3631b0a"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "b4fb134390b7a9d951131796e15010b4",
+          "span_id": "55dcb0069aff95de",
+          "service": "checkout",
+          "operation": "POST",
+          "start_time_us": 1792749800623599.0,
+          "duration_us": 7042.458,
+          "peer_service": "shipping",
+          "rpc_service": null,
+          "child_services": [
+            "shipping"
+          ],
+          "parent_span_ids": [
+            "f7ed53b9406e2820"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "b4fb134390b7a9d951131796e15010b4",
+          "span_id": "dfa71391f3e693f7",
+          "service": "checkout",
+          "operation": "POST",
+          "start_time_us": 1792749800642032.8,
+          "duration_us": 1071.416,
+          "peer_service": "shipping",
+          "rpc_service": null,
+          "child_services": [
+            "shipping"
+          ],
+          "parent_span_ids": [
+            "2b958e60af4d55a1"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "b4fb134390b7a9d951131796e15010b4",
+          "span_id": "76fd287360ce4794",
+          "service": "checkout",
+          "operation": "POST",
+          "start_time_us": 1792749800648194.8,
+          "duration_us": 7182.333,
+          "peer_service": "email",
+          "rpc_service": null,
+          "child_services": [
+            "email"
+          ],
+          "parent_span_ids": [
+            "2b958e60af4d55a1"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "b4fb134390b7a9d951131796e15010b4",
+          "span_id": "f7ed53b9406e2820",
+          "service": "checkout",
+          "operation": "prepareOrderItemsAndShippingQuoteFromCart",
+          "start_time_us": 1792749800596261.5,
+          "duration_us": 39646.833,
+          "peer_service": null,
+          "rpc_service": null,
+          "child_services": [],
+          "parent_span_ids": [
+            "2b958e60af4d55a1"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "f4f6b474833eb189514c6494af6f3100",
+          "span_id": "5948d5cc57710ac0",
+          "service": "checkout",
+          "operation": "oteldemo.CartService/GetCart",
+          "start_time_us": 1792749746517777.5,
+          "duration_us": 5520.708,
+          "peer_service": "172.21.0.20",
+          "rpc_service": null,
+          "child_services": [
+            "cart"
+          ],
+          "parent_span_ids": [
+            "22ec9832f2517dfe"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "f4f6b474833eb189514c6494af6f3100",
+          "span_id": "e6615620cb877546",
+          "service": "checkout",
+          "operation": "oteldemo.ProductCatalogService/GetProduct",
+          "start_time_us": 1792749746523694.2,
+          "duration_us": 3962.834,
+          "peer_service": "172.21.0.21",
+          "rpc_service": null,
+          "child_services": [
+            "product-catalog"
+          ],
+          "parent_span_ids": [
+            "22ec9832f2517dfe"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "f4f6b474833eb189514c6494af6f3100",
+          "span_id": "e5472254380fab4d",
+          "service": "checkout",
+          "operation": "oteldemo.CurrencyService/Convert",
+          "start_time_us": 1792749746527759.8,
+          "duration_us": 1620.208,
+          "peer_service": "172.21.0.18",
+          "rpc_service": null,
+          "child_services": [
+            "currency"
+          ],
+          "parent_span_ids": [
+            "22ec9832f2517dfe"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "f4f6b474833eb189514c6494af6f3100",
+          "span_id": "4fcad292be804ac8",
+          "service": "checkout",
+          "operation": "oteldemo.ProductCatalogService/GetProduct",
+          "start_time_us": 1792749746529409.8,
+          "duration_us": 16831.667,
+          "peer_service": "172.21.0.21",
+          "rpc_service": null,
+          "child_services": [
+            "product-catalog"
+          ],
+          "parent_span_ids": [
+            "22ec9832f2517dfe"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "f4f6b474833eb189514c6494af6f3100",
+          "span_id": "79b33a3bc75448c5",
+          "service": "checkout",
+          "operation": "oteldemo.CurrencyService/Convert",
+          "start_time_us": 1792749746549214.2,
+          "duration_us": 7032.75,
+          "peer_service": "172.21.0.18",
+          "rpc_service": null,
+          "child_services": [
+            "currency"
+          ],
+          "parent_span_ids": [
+            "22ec9832f2517dfe"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "f4f6b474833eb189514c6494af6f3100",
+          "span_id": "1ef0bc0e7a9e41fc",
+          "service": "checkout",
+          "operation": "oteldemo.CurrencyService/Convert",
+          "start_time_us": 1792749746591804.2,
+          "duration_us": 1389.792,
+          "peer_service": "172.21.0.18",
+          "rpc_service": null,
+          "child_services": [
+            "currency"
+          ],
+          "parent_span_ids": [
+            "22ec9832f2517dfe"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "f4f6b474833eb189514c6494af6f3100",
+          "span_id": "55b47bd6bacd424a",
+          "service": "checkout",
+          "operation": "oteldemo.PaymentService/Charge",
+          "start_time_us": 1792749746593866.5,
+          "duration_us": 6243.708,
+          "peer_service": "172.21.0.13",
+          "rpc_service": null,
+          "child_services": [
+            "payment"
+          ],
+          "parent_span_ids": [
+            "749a76835ba1a4a5"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "f4f6b474833eb189514c6494af6f3100",
+          "span_id": "56a2e556d18d4102",
+          "service": "checkout",
+          "operation": "oteldemo.CartService/EmptyCart",
+          "start_time_us": 1792749746608454.0,
+          "duration_us": 5000.042,
+          "peer_service": "172.21.0.20",
+          "rpc_service": null,
+          "child_services": [
+            "cart"
+          ],
+          "parent_span_ids": [
+            "749a76835ba1a4a5"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "f4f6b474833eb189514c6494af6f3100",
+          "span_id": "749a76835ba1a4a5",
+          "service": "checkout",
+          "operation": "oteldemo.CheckoutService/PlaceOrder",
+          "start_time_us": 1792749746505889.2,
+          "duration_us": 124889.292,
+          "peer_service": "172.21.0.23",
+          "rpc_service": null,
+          "child_services": [],
+          "parent_span_ids": [
+            "87aacde8a4b73c8a"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "f4f6b474833eb189514c6494af6f3100",
+          "span_id": "f4b06e865605b2ea",
+          "service": "checkout",
+          "operation": "POST",
+          "start_time_us": 1792749746565626.8,
+          "duration_us": 19103.541,
+          "peer_service": "shipping",
+          "rpc_service": null,
+          "child_services": [
+            "shipping"
+          ],
+          "parent_span_ids": [
+            "22ec9832f2517dfe"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "f4f6b474833eb189514c6494af6f3100",
+          "span_id": "0802c5546d92abad",
+          "service": "checkout",
+          "operation": "POST",
+          "start_time_us": 1792749746600879.0,
+          "duration_us": 6347.792,
+          "peer_service": "shipping",
+          "rpc_service": null,
+          "child_services": [
+            "shipping"
+          ],
+          "parent_span_ids": [
+            "749a76835ba1a4a5"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "f4f6b474833eb189514c6494af6f3100",
+          "span_id": "eeb41feed615c0e4",
+          "service": "checkout",
+          "operation": "POST",
+          "start_time_us": 1792749746614155.0,
+          "duration_us": 16147.875,
+          "peer_service": "email",
+          "rpc_service": null,
+          "child_services": [
+            "email"
+          ],
+          "parent_span_ids": [
+            "749a76835ba1a4a5"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "f4f6b474833eb189514c6494af6f3100",
+          "span_id": "22ec9832f2517dfe",
+          "service": "checkout",
+          "operation": "prepareOrderItemsAndShippingQuoteFromCart",
+          "start_time_us": 1792749746516693.8,
+          "duration_us": 76683.875,
+          "peer_service": null,
+          "rpc_service": null,
+          "child_services": [],
+          "parent_span_ids": [
+            "749a76835ba1a4a5"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "7facebdd89a8b0441e476cfcebb237fc",
+          "span_id": "c674e8777cfc51de",
+          "service": "checkout",
+          "operation": "oteldemo.CartService/GetCart",
+          "start_time_us": 1792749724809420.8,
+          "duration_us": 3998.541,
+          "peer_service": "172.21.0.20",
+          "rpc_service": null,
+          "child_services": [
+            "cart"
+          ],
+          "parent_span_ids": [
+            "ea67c05827335df6"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "7facebdd89a8b0441e476cfcebb237fc",
+          "span_id": "fa9b372b5c3402bf",
+          "service": "checkout",
+          "operation": "oteldemo.ProductCatalogService/GetProduct",
+          "start_time_us": 1792749724813913.5,
+          "duration_us": 5459.833,
+          "peer_service": "172.21.0.21",
+          "rpc_service": null,
+          "child_services": [
+            "product-catalog"
+          ],
+          "parent_span_ids": [
+            "ea67c05827335df6"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "7facebdd89a8b0441e476cfcebb237fc",
+          "span_id": "153761c4014be736",
+          "service": "checkout",
+          "operation": "oteldemo.CurrencyService/Convert",
+          "start_time_us": 1792749724819432.5,
+          "duration_us": 4714.083,
+          "peer_service": "172.21.0.18",
+          "rpc_service": null,
+          "child_services": [
+            "currency"
+          ],
+          "parent_span_ids": [
+            "ea67c05827335df6"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "7facebdd89a8b0441e476cfcebb237fc",
+          "span_id": "58688b89dab3e7a8",
+          "service": "checkout",
+          "operation": "oteldemo.CurrencyService/Convert",
+          "start_time_us": 1792749724838094.5,
+          "duration_us": 1478.208,
+          "peer_service": "172.21.0.18",
+          "rpc_service": null,
+          "child_services": [
+            "currency"
+          ],
+          "parent_span_ids": [
+            "ea67c05827335df6"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "7facebdd89a8b0441e476cfcebb237fc",
+          "span_id": "74d61a25323c0636",
+          "service": "checkout",
+          "operation": "oteldemo.PaymentService/Charge",
+          "start_time_us": 1792749724840465.8,
+          "duration_us": 2852.042,
+          "peer_service": "172.21.0.13",
+          "rpc_service": null,
+          "child_services": [
+            "payment"
+          ],
+          "parent_span_ids": [
+            "7fb260c887ead347"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "7facebdd89a8b0441e476cfcebb237fc",
+          "span_id": "2f49568b7f65856f",
+          "service": "checkout",
+          "operation": "oteldemo.CartService/EmptyCart",
+          "start_time_us": 1792749724846919.2,
+          "duration_us": 2476.417,
+          "peer_service": "172.21.0.20",
+          "rpc_service": null,
+          "child_services": [
+            "cart"
+          ],
+          "parent_span_ids": [
+            "7fb260c887ead347"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "7facebdd89a8b0441e476cfcebb237fc",
+          "span_id": "7fb260c887ead347",
+          "service": "checkout",
+          "operation": "oteldemo.CheckoutService/PlaceOrder",
+          "start_time_us": 1792749724782356.2,
+          "duration_us": 93526.708,
+          "peer_service": "172.21.0.23",
+          "rpc_service": null,
+          "child_services": [],
+          "parent_span_ids": [
+            "5a6d4bfa66d249a2"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "7facebdd89a8b0441e476cfcebb237fc",
+          "span_id": "5e7948db6753e094",
+          "service": "checkout",
+          "operation": "POST",
+          "start_time_us": 1792749724827750.2,
+          "duration_us": 8810.75,
+          "peer_service": "shipping",
+          "rpc_service": null,
+          "child_services": [
+            "shipping"
+          ],
+          "parent_span_ids": [
+            "ea67c05827335df6"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "7facebdd89a8b0441e476cfcebb237fc",
+          "span_id": "4b4bd20dd88f5656",
+          "service": "checkout",
+          "operation": "POST",
+          "start_time_us": 1792749724845525.2,
+          "duration_us": 1145.5,
+          "peer_service": "shipping",
+          "rpc_service": null,
+          "child_services": [
+            "shipping"
+          ],
+          "parent_span_ids": [
+            "7fb260c887ead347"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "7facebdd89a8b0441e476cfcebb237fc",
+          "span_id": "9946566871636b76",
+          "service": "checkout",
+          "operation": "POST",
+          "start_time_us": 1792749724850062.8,
+          "duration_us": 25454.75,
+          "peer_service": "email",
+          "rpc_service": null,
+          "child_services": [
+            "email"
+          ],
+          "parent_span_ids": [
+            "7fb260c887ead347"
+          ],
+          "error": false
+        },
+        {
+          "trace_id": "7facebdd89a8b0441e476cfcebb237fc",
+          "span_id": "ea67c05827335df6",
+          "service": "checkout",
+          "operation": "prepareOrderItemsAndShippingQuoteFromCart",
+          "start_time_us": 1792749724808620.5,
+          "duration_us": 31172.25,
+          "peer_service": null,
+          "rpc_service": null,
+          "child_services": [],
+          "parent_span_ids": [
+            "7fb260c887ead347"
+          ],
+          "error": false
+        }
+      ],
+      "status": "observed",
+      "warnings": [],
+      "evidence_id": "ev_de1a19afa35e79bc"
+    }
+  ],
+  "limitations": [
+    "This is a telemetry snapshot, not an AI diagnosis or a recovery claim.",
+    "Missing samples are not proof of health. Metrics may need several export intervals to appear.",
+    "Recent traces are a bounded sample, not an exhaustive incident history.",
+    "This snapshot contains metrics and traces; the investigation pipeline separately collects logs, health and resource samples."
+  ]
+}

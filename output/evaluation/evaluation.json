@@ -1,0 +1,104 @@
+{
+  "synthetic": true,
+  "uses_real_llm": false,
+  "measures_model_accuracy": false,
+  "results": [
+    {
+      "scenario": "recovered",
+      "expected_state": "resolved",
+      "actual_state": "resolved",
+      "passed": true,
+      "mutations": 1,
+      "report": "output/evaluation/inc_5e1b5f41fd27479b.md"
+    },
+    {
+      "scenario": "failed",
+      "expected_state": "escalated",
+      "actual_state": "escalated",
+      "passed": true,
+      "mutations": 1,
+      "report": "output/evaluation/inc_8f63f35de9d44fcc.md"
+    },
+    {
+      "scenario": "missing",
+      "expected_state": "escalated",
+      "actual_state": "escalated",
+      "passed": true,
+      "mutations": 0,
+      "report": "output/evaluation/inc_e5756752ad484658.md"
+    },
+    {
+      "scenario": "rejected",
+      "expected_state": "escalated",
+      "actual_state": "escalated",
+      "passed": true,
+      "mutations": 0,
+      "report": "output/evaluation/inc_ff15940dc6bf4c25.md"
+    },
+    {
+      "scenario": "killed",
+      "expected_state": "escalated",
+      "actual_state": "escalated",
+      "passed": true,
+      "mutations": 0,
+      "report": "output/evaluation/inc_5735304b64fd4e6b.md"
+    },
+    {
+      "scenario": "unknown",
+      "expected_state": "escalated",
+      "actual_state": "escalated",
+      "passed": true,
+      "mutations": 0,
+      "report": "output/evaluation/inc_d3087475e5ed4bc5.md"
+    },
+    {
+      "scenario": "combined",
+      "expected_state": "resolved",
+      "actual_state": "resolved",
+      "passed": true,
+      "mutations": 2,
+      "report": "output/evaluation/inc_fa173826d2a44dc0.md"
+    },
+    {
+      "scenario": "oom",
+      "expected_state": "resolved",
+      "actual_state": "resolved",
+      "passed": true,
+      "mutations": 1,
+      "report": "output/evaluation/inc_3f11555be3b742a1.md"
+    },
+    {
+      "scenario": "restart-loop",
+      "expected_state": "resolved",
+      "actual_state": "resolved",
+      "passed": true,
+      "mutations": 1,
+      "report": "output/evaluation/inc_267479fbd9154b97.md"
+    },
+    {
+      "scenario": "tier2",
+      "expected_state": "resolved",
+      "actual_state": "resolved",
+      "passed": true,
+      "mutations": 1,
+      "report": "output/evaluation/inc_18060eb2da604861.md"
+    },
+    {
+      "scenario": "rollback",
+      "expected_state": "escalated",
+      "actual_state": "escalated",
+      "passed": true,
+      "mutations": 2,
+      "report": "output/evaluation/inc_789f1af3ec314895.md"
+    },
+    {
+      "scenario": "three-causes",
+      "expected_state": "escalated",
+      "actual_state": "escalated",
+      "passed": true,
+      "mutations": 0,
+      "report": "output/evaluation/inc_d6fb02c4a35a4669.md"
+    }
+  ],
+  "limitations": "Hand-authored synthetic workflow cases, including a protocol test double for fallback. No organizer practice/hidden cases or live LLM evaluated. Escalation is the expected safe outcome for unsupported unknown causes, not a successful diagnosis."
+}

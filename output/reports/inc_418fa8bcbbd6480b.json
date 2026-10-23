@@ -1,0 +1,248 @@
+{
+  "schema_version": "incident-zero-development-v1",
+  "official_incident_schema": false,
+  "id": "inc_418fa8bcbbd6480b",
+  "mode": "live",
+  "alert": {
+    "service": "checkout",
+    "source": "manual_alert",
+    "summary": "Checkout errors"
+  },
+  "state": "escalated",
+  "created": 1792749340.515432,
+  "diagnosis": null,
+  "evidence": [
+    {
+      "collected_at": "2026-10-23T09:55:40.516757+00:00",
+      "evidence_id": "ev_65718727f34af3877baa",
+      "kind": "server_calls_per_second",
+      "observations": [
+        {
+          "timestamp": 1792749340.517,
+          "value": 0.04999958333680553
+        }
+      ],
+      "query": {
+        "query": "sum(rate(traces_span_metrics_calls_total{service_name=\"checkout\",span_kind=\"SPAN_KIND_SERVER\"}[300s]))",
+        "time": 1792749340.516635
+      },
+      "service": "checkout",
+      "source_url": "http://localhost:9090/api/v1/query",
+      "status": "observed",
+      "warnings": [],
+      "window_end_unix": 1792749340.516635,
+      "window_start_unix": 1792749040.516635
+    },
+    {
+      "collected_at": "2026-10-23T09:55:40.525311+00:00",
+      "evidence_id": "ev_ba8eba07781d0cccb83c",
+      "kind": "server_errors_per_second",
+      "observations": [
+        {
+          "timestamp": 1792749340.517,
+          "value": 0.0
+        }
+      ],
+      "query": {
+        "query": "sum(rate(traces_span_metrics_calls_total{service_name=\"checkout\",span_kind=\"SPAN_KIND_SERVER\",status_code=\"STATUS_CODE_ERROR\"}[300s])) or (sum(rate(traces_span_metrics_calls_total{service_name=\"checkout\",span_kind=\"SPAN_KIND_SERVER\"}[300s])) * 0)",
+        "time": 1792749340.516635
+      },
+      "service": "checkout",
+      "source_url": "http://localhost:9090/api/v1/query",
+      "status": "observed",
+      "warnings": [],
+      "window_end_unix": 1792749340.516635,
+      "window_start_unix": 1792749040.516635
+    },
+    {
+      "collected_at": "2026-10-23T09:55:40.527192+00:00",
+      "evidence_id": "ev_dfad390c22d645395ed4",
+      "kind": "server_p95_milliseconds",
+      "observations": [
+        {
+          "timestamp": 1792749340.517,
+          "value": 188.0
+        }
+      ],
+      "query": {
+        "query": "histogram_quantile(0.95, sum by (le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name=\"checkout\",span_kind=\"SPAN_KIND_SERVER\"}[300s])))",
+        "time": 1792749340.516635
+      },
+      "service": "checkout",
+      "source_url": "http://localhost:9090/api/v1/query",
+      "status": "observed",
+      "warnings": [],
+      "window_end_unix": 1792749340.516635,
+      "window_start_unix": 1792749040.516635
+    },
+    {
+      "collected_at": "2026-10-23T09:55:40.529022+00:00",
+      "error": "Telemetry endpoint returned HTTP 404",
+      "evidence_id": "ev_5b5d3673059c649943f0",
+      "kind": "recent_traces",
+      "observations": [],
+      "query": {
+        "end": 1792749340516635,
+        "limit": 10,
+        "service": "checkout",
+        "start": 1792749040516635
+      },
+      "service": "checkout",
+      "source_url": "http://localhost:8080/jaeger/ui/api/traces",
+      "status": "unavailable",
+      "window_end_unix": 1792749340.516635,
+      "window_start_unix": 1792749040.516635
+    },
+    {
+      "collected_at": "2026-10-23T09:55:40.612576+00:00",
+      "evidence_id": "ev_8e07157559c0b40dc417",
+      "kind": "container_health",
+      "observations": [
+        {
+          "exit_code": 0,
+          "health": "healthy",
+          "oom_killed": false,
+          "restart_count": 0,
+          "restarting": false,
+          "running": true,
+          "status": "running"
+        }
+      ],
+      "query": {},
+      "service": "checkout",
+      "source_url": "docker://checkout/state",
+      "status": "observed",
+      "window_end_unix": 1792749340.516635,
+      "window_start_unix": 1792749340.516635
+    },
+    {
+      "collected_at": "2026-10-23T09:55:41.662011+00:00",
+      "evidence_id": "ev_1c19a4e285e6e5598c85",
+      "kind": "container_resources",
+      "observations": [
+        {
+          "cpu_percent": 5.57,
+          "memory_percent": 47.01
+        }
+      ],
+      "query": {},
+      "service": "checkout",
+      "source_url": "docker://checkout/stats",
+      "status": "observed",
+      "window_end_unix": 1792749340.516635,
+      "window_start_unix": 1792749340.516635
+    },
+    {
+      "collected_at": "2026-10-23T09:55:41.663890+00:00",
+      "error": "TelemetryError",
+      "evidence_id": "ev_127cede15b32ce2cd159",
+      "kind": "read_logs",
+      "observations": [],
+      "query": {},
+      "service": "checkout",
+      "source_url": "tool://unavailable",
+      "status": "unavailable",
+      "window_end_unix": 1792749340.516635,
+      "window_start_unix": 1792749040.516635
+    }
+  ],
+  "proposals": [],
+  "timeline": [
+    {
+      "seq": 431,
+      "created": 1792749340.515795,
+      "kind": "detected",
+      "detail": {
+        "service": "checkout",
+        "source": "manual_alert",
+        "summary": "Checkout errors"
+      }
+    },
+    {
+      "seq": 432,
+      "created": 1792749340.534505,
+      "kind": "tool_called",
+      "detail": {
+        "evidence_ids": [
+          "ev_65718727f34af3877baa",
+          "ev_ba8eba07781d0cccb83c",
+          "ev_dfad390c22d645395ed4",
+          "ev_5b5d3673059c649943f0"
+        ],
+        "service": "checkout",
+        "tool": "inspect_service"
+      }
+    },
+    {
+      "seq": 433,
+      "created": 1792749340.613618,
+      "kind": "tool_called",
+      "detail": {
+        "evidence_ids": [
+          "ev_8e07157559c0b40dc417"
+        ],
+        "service": "checkout",
+        "tool": "read_container_health"
+      }
+    },
+    {
+      "seq": 434,
+      "created": 1792749341.66323,
+      "kind": "tool_called",
+      "detail": {
+        "evidence_ids": [
+          "ev_1c19a4e285e6e5598c85"
+        ],
+        "service": "checkout",
+        "tool": "read_resources"
+      }
+    },
+    {
+      "seq": 435,
+      "created": 1792749341.6647182,
+      "kind": "tool_called",
+      "detail": {
+        "evidence_ids": [
+          "ev_127cede15b32ce2cd159"
+        ],
+        "service": "checkout",
+        "tool": "read_logs"
+      }
+    },
+    {
+      "seq": 436,
+      "created": 1792749341.670302,
+      "kind": "triage",
+      "detail": {
+        "ambiguous": [],
+        "edges": [],
+        "fingerprint": "8157cf3daac5f572dd4605437efa7773404847c735ae43b21650c7be2205ffbd",
+        "memory_confidence_bonus": 0,
+        "memory_hints": [],
+        "rule_candidates": [],
+        "services": [
+          "checkout"
+        ],
+        "unvisited": []
+      }
+    },
+    {
+      "seq": 437,
+      "created": 1792749341.671131,
+      "kind": "llm_fallback",
+      "detail": {
+        "max_calls": 8,
+        "reason": "No confident rule signature"
+      }
+    },
+    {
+      "seq": 438,
+      "created": 1792749343.094634,
+      "kind": "escalated",
+      "detail": {
+        "reason": "Model API returned HTTP 429; check account, model access and limits",
+        "tokens_reported": 0
+      }
+    }
+  ]
+}

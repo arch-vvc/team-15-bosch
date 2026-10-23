@@ -1,51 +1,105 @@
-# Team 15: Incident Zero (Bosch × PES University)
+# Incident Zero — AI On-Call Engineer
 
-An AI On-Call Engineer for the OpenTelemetry Demo: deterministic rules first, an LLM fallback only when the rules are unsure, human approval for every change, and changes made only through the organisers' Action API.
+Rules-first implementation of the supplied architecture: alert → triage → dependency localization → rules → bounded LLM fallback → evidence validation → trusted remedy → human approval → Action API → recovery verification → report and verified memory.
 
-**This repo currently holds prep material only (design and notes, no agent code).** The agent is written on the day, per the hackathon rules.
+**Start all agent commands from `/Users/nryashaswiamrutha/Bosch_Hackathon`.** Python 3.11+ is required. The agent uses the Python standard library; no pip install is needed for these commands. The upstream application is a separate checkout in `opentelemetry-demo/`.
 
-## Contents
-| Path | What it is |
-|---|---|
-| `docs/incident-zero-architecture.pdf` | Architecture diagram: 13 steps, owners, tiers, guardrails |
-| `docs/hackathon-brief.pdf` | The organisers' slides (rules, scoring, timeline) |
-| `prep/team-briefs.md` | **Start here.** Shared context, interfaces, and one brief per person (A–E) to paste into your Claude Code or ChatGPT |
-| `prep/fault-signatures.md` | What each failure looks like in telemetry, look-alikes, and the flag-redaction list |
-| `prep/query-cookbook.md` | Exact Prometheus, Jaeger, OpenSearch and Docker queries for each read-only tool |
-| `prep/prep-runbook.md` | Step-by-step prep session: baseline, 14 application faults, 8 infrastructure faults, combinations |
+## 1. Run the complete demonstration now
 
-## Setup
-The OpenTelemetry Demo is included as a **git submodule** in `opentelemetry-demo/`, pinned to commit `ad06a6f` (22 Oct 2026), the version our prep notes were written against.
+No API key, Docker containers or network access is needed for these synthetic exercises:
 
-1. **Install** Docker Desktop and Python 3.11.
-2. **Give Docker about 5 GB of memory:** Docker Desktop → Settings → Resources → Memory limit → Apply. On an 8 GB laptop, don't go higher.
-3. **Make the `docker` command available** (Docker Desktop on macOS doesn't always add it to the PATH):
-   ```bash
-   echo 'export PATH="$HOME/.docker/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc
-   docker compose version
-   ```
-4. **Clone this repo with the demo:**
-   ```bash
-   git clone --recurse-submodules https://github.com/arch-vvc/team-15-bosch.git
-   ```
-   If you already cloned without it, run `git submodule update --init` inside the repo.
-5. **Pull the demo images once** (several GB; use good Wi-Fi). Limiting parallel downloads avoids "unexpected EOF" failures, and if it fails anyway, rerun it and it resumes:
-   ```bash
-   cd team-15-bosch/opentelemetry-demo
-   COMPOSE_PARALLEL_LIMIT=3 docker compose --env-file .env --env-file .env.override -f compose.yaml -f compose.observability.yaml -f compose.extras.yaml pull
-   ```
-6. **Start it** (minimal mode: the shop plus Prometheus, Jaeger, Grafana, OpenSearch, without Kafka):
-   ```bash
-   make start-minimal
-   ```
-   Open the shop at http://localhost:8080, Jaeger at http://localhost:8080/jaeger/ui and Grafana at http://localhost:8080/grafana/.
-7. **Stop it** when done, to free memory: `make stop`
-8. Then follow `prep/prep-runbook.md`.
+```sh
+cd /Users/nryashaswiamrutha/Bosch_Hackathon
+python3.11 -m incident_zero simulate --exercise
+python3.11 -m incident_zero simulate --scenario combined --exercise
+python3.11 -m incident_zero simulate --scenario unknown --exercise
+python3.11 -m incident_zero evaluate
+```
 
-**Comes from the organisers at kickoff, not in this repo yet:** the template repo, `faultctl`, the Action API, the incident JSON schema, the offline incident bundles, and the LLM API key.
+The first case should resolve after one simulated action. The combined case uses two separate simulated approvals, verifies the first target, rechecks the second cause and verifies all affected targets at the end. The unknown case should escalate with evidence and no mutation. Reports are JSON and Markdown under `output/`; evaluation summary: `output/evaluation/evaluation.md`.
 
-## Non-negotiables
-- Never read feature-flag state (flagd, the flag UI or the flag API), and strip flag data from all telemetry.
-- The LLM has read-only tools only and never chooses or executes actions.
-- Every change needs explicit human approval and goes through the Action API.
-- No hard-coded incident answers.
+`--exercise` supplies **test approvals in synthetic data only**. It never approves a live action, calls Docker to mutate a container, or measures LLM accuracy. Omit it to inspect a pending proposal. Scenarios: `recovered`, `failed`, `missing`, `rejected`, `killed`, `unknown`, `combined`, `oom`, `restart-loop`, `tier2`, `rollback`, `three-causes`.
+
+## 2. Start the OpenTelemetry application
+
+The upstream repository is already cloned in this workspace. For a fresh copy of the source archive, first run `git clone https://github.com/open-telemetry/opentelemetry-demo.git` from the extracted agent root. Open Docker Desktop, then in another terminal:
+
+```sh
+cd /Users/nryashaswiamrutha/Bosch_Hackathon/opentelemetry-demo
+docker compose --parallel 3 -f compose.yaml -f compose.observability.yaml up -d --no-build --wait --wait-timeout 180
+docker compose -f compose.yaml -f compose.observability.yaml ps -a
+```
+
+Image downloads can take a long time. Do not launch a duplicate if the earlier Compose download is still running. Successful startup must be confirmed by healthy/running containers. Shop: http://localhost:8080/ ; traces: http://localhost:8080/jaeger/ui/ ; Grafana: http://localhost:8080/grafana/ ; Prometheus: http://localhost:9090/ . Find the log port with:
+
+```sh
+docker compose -f compose.yaml -f compose.observability.yaml port opensearch 9200
+```
+
+## 3. Configure the optional LLM fallback
+
+Put your key in the root `.env` file as `OPENAI_API_KEY=...`. Keep the configured `INCIDENT_MODEL` and `INCIDENT_MODEL_URL`, or use an accessible Responses-compatible local model endpoint. Do not put the key in chat, a command argument, Git, or a report. The model is constructed only if rules are unsure. A confident rule works without a key; absent credentials on an unknown case produce an evidence-backed escalation.
+
+## 4. Investigate live telemetry
+
+Return to the agent root:
+
+```sh
+cd /Users/nryashaswiamrutha/Bosch_Hackathon
+python3.11 -m incident_zero doctor
+python3.11 -m incident_zero observe --service checkout
+python3.11 -m incident_zero investigate --service checkout --alert "Checkout errors" --container-health
+```
+
+Add `--opensearch-url http://localhost:PORT` using the actual port from step 2 to include logs. A bounded watcher is also available:
+
+```sh
+python3.11 -m incident_zero watch --service checkout --container-health --cycles 10 --interval 30
+```
+
+It detects sustained errors, p95 latency and stopped/restarting containers. No missing samples are interpreted as healthy. Investigation does not execute fixes.
+
+## 5. Connect documented remedies, then approve each change
+
+The public demo repository does **not** include the Bosch Action API, official incident schema or practice bundles. Fill a local copy of `config/action-contract.example.json` using the organizer's actual contract. Every mapping specifies an exact target, endpoint, fixed body, acceptance response, tier, telemetry signatures and optional rollback action. Do not mark placeholders confirmed.
+
+Supply `--action-contract config/action-contract.local.json` to `investigate` or `watch` once reviewed. If a unique permitted remedy exists, the report contains its proposal ID and digest:
+
+```sh
+python3.11 -m incident_zero plan PLAN_ID
+python3.11 -m incident_zero execute PLAN_ID
+python3.11 -m incident_zero decide PLAN_ID --digest DIGEST --by "Your name" --decision approve
+# Tier 2 requires the dry run above plus --confirm-service EXACT_SERVICE.
+python3.11 -m incident_zero execute PLAN_ID --live --action-contract config/action-contract.local.json --container-health
+```
+
+Live execution requires explicit approval for the exact proposal, valid for five minutes. Tier 1 requires confidence ≥0.7; tier 2 requires ≥0.85, a recorded dry run and typed service. Tier 3 escalates. A second cause and a rollback each require a fresh approval. At most two mutations total, including rollback, are allowed per incident. One rollback at most, then escalation. Ambiguous API timeouts never auto-retry.
+
+Recovery uses three fresh samples over three minutes with positive traffic, ≤1% errors and p95 ≤2000ms. Infrastructure targets require running and healthy container state. These thresholds need calibration and service-specific adaptation with real practice data. An end-to-end customer transaction probe is not implemented.
+
+```sh
+python3.11 -m incident_zero kill on
+python3.11 -m incident_zero kill off
+python3.11 -m incident_zero report INCIDENT_ID
+```
+
+The kill switch blocks new tool/model/action calls; it cannot cancel an already dispatched request. Reports are refreshed after execute, including errors. Re-export after a manual decision if needed.
+
+## Implementation and validation
+
+- `pipeline.py`: architecture coordinator and code-selected remedies.
+- `rules.py`, `config/rules.json`: generic container signatures, resource correlations, dependency ordering and confidence margin. These rules use telemetry, never incident IDs or fault settings.
+- `agent.py`, `model.py`: up to eight fallback calls, strict cited evidence, no model-selected live mutation.
+- `tools.py`, `telemetry.py`: projected read-only metrics, traces, logs, health and resource samples.
+- `store.py`, `actions.py`: append-only evidence/events, durable approval state, tiers, bounded execution and verification.
+- `reporting.py`: ledger-derived JSON/Markdown. Report facts are deterministic; optional LLM prose generation is not implemented.
+- `demo.py`, `evaluation.py`: transparent synthetic evaluation; `synthetic.py` retains transport-test fixtures.
+
+```sh
+python3.11 -m unittest discover -s tests -v
+```
+
+Loopback HTTP tests require permission to bind local ports. See `docs/architecture.md` for the numbered diagram mapping and `docs/build-plan.md` for remaining integrations. All synthetic cases passing means the workflow behaved as expected, **not that all unknown faults were diagnosed or fixed**. Hidden-incident performance, real LLM quality, official scoring and live remedies remain unverified until the organizer interfaces, model access and running demo are available.
+
+
+Latest validation: **68 tests passed; 12/12 synthetic cases passed**. Docker is now running, and live checkout metrics, traces, logs and container health were verified. The latest model request returned HTTP 429 and safely escalated before a completion. See `docs/evaluation-note.md` for the limits of these results.

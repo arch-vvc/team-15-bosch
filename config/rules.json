@@ -1,0 +1,8 @@
+{
+  "minimum_confidence": 0.7,
+  "minimum_margin": 0.1,
+  "signatures": [
+    {"id": "cpu_saturation", "confidence": 0.8, "summary": "High CPU coincides with elevated service latency; workload and runtime causes need investigation.", "conditions": [{"kind": "container_resources", "field": "cpu_percent", "operator": "gte", "value": 90}, {"kind": "server_p95_milliseconds", "field": "value", "operator": "gte", "value": 2000}]},
+    {"id": "memory_pressure", "confidence": 0.8, "summary": "High container memory utilization coincides with elevated latency; a leak is not proven by this snapshot.", "conditions": [{"kind": "container_resources", "field": "memory_percent", "operator": "gte", "value": 90}, {"kind": "server_p95_milliseconds", "field": "value", "operator": "gte", "value": 2000}]}
+  ]
+}
