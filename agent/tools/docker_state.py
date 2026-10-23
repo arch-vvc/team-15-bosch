@@ -125,6 +125,11 @@ def container_facts(c: ContainerStatus, base: dict, detail: bool) -> list[Fact]:
                               direction="up" if near else None))
     if c.cpu_used is not None:
         pinned = c.cpu_limit is not None and c.cpu_used >= a["cpu_near_limit"] * c.cpu_limit
+        # the demo sets no CPU limits, so also compare with the baseline: a busy loop shows as a jump
+        base_used = base.get("cpu_used")
+        jumped = base_used is not None and c.cpu_used > max(a["cpu_used_mult"] * base_used,
+                                                             base_used + a["cpu_used_min_delta"])
+        pinned = pinned or jumped
         if pinned or detail:
             facts.append(Fact(service=c.service, signal="cpu_used", value=c.cpu_used, baseline=base.get("cpu_used"),
                               direction="up" if pinned else None))

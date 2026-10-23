@@ -34,6 +34,7 @@ class WorkflowTests(unittest.TestCase):
         return incident, plan, backend, tools
 
     def approve(self, plan):
+        execute_plan(self.store, plan["id"], None, None, dry_run=True)   # approval needs a dry run first
         self.store.decide(plan["id"], plan["digest"], "synthetic test operator", True)
 
     def test_investigator_stops_before_mutation(self):

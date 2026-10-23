@@ -21,6 +21,8 @@ anomaly:                   # used by the alert watcher, triage and verify alike
   mem_limit_ratio: 0.9     # live memory limit below 90 % of compose value = starvation
   mem_near_limit: 0.9      # memory used above 90 % of the limit
   cpu_near_limit: 0.9      # cpu used above 90 % of a cpu limit (pinned at the cap)
+  cpu_used_mult: 3.0       # or, with no limit: cpu used > max(3 x baseline, baseline + 0.5 cores)
+  cpu_used_min_delta: 0.5
 
 alert:
   poll_interval_s: 15

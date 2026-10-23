@@ -1,5 +1,9 @@
 # Incident Zero — AI On-Call Engineer
 
+> **Branch `archit/merged`:** the combined agent is `python -m agent.run` (Eyes, rules engine
+> and validator, Person C's orchestrator and action safety, approval, report, memory). See
+> `docs/combined.md`. The `incident_zero` CLI below still works and shares the Eyes tools.
+
 Rules-first implementation of the supplied architecture: alert → triage → dependency localization → rules → bounded LLM fallback → evidence validation → trusted remedy → human approval → Action API → recovery verification → report and verified memory.
 
 **Start all agent commands from the repository root.** Python 3.11+ is required. Install the dependencies once (the Eyes tools in `agent/` need them):
@@ -116,4 +120,4 @@ pytest -q
 Loopback HTTP tests require permission to bind local ports. See `docs/architecture.md` for the numbered diagram mapping and `docs/build-plan.md` for remaining integrations. All synthetic cases passing means the workflow behaved as expected, **not that all unknown faults were diagnosed or fixed**. Hidden-incident performance, real LLM quality, official scoring and live remedies remain unverified until the organizer interfaces, model access and running demo are available.
 
 
-Latest validation: **138 tests passed (after merging the Eyes tools); 12/12 synthetic cases passed**. Docker is now running, and live checkout metrics, traces, logs and container health were verified. The latest model request returned HTTP 429 and safely escalated before a completion. See `docs/evaluation-note.md` for the limits of these results.
+Latest validation: **227 tests passed (after combining Eyes, Person C and incident_zero); 12/12 synthetic cases passed**. Docker is now running, and live checkout metrics, traces, logs and container health were verified. The latest model request returned HTTP 429 and safely escalated before a completion. See `docs/evaluation-note.md` for the limits of these results.

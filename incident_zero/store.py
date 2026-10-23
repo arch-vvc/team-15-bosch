@@ -9,6 +9,7 @@ import time
 import uuid
 from pathlib import Path
 
+from agent.act.killswitch import KillSwitch
 from agent.tools import redact
 
 
@@ -118,12 +119,13 @@ class Store:
             if approve and tier is not None:
                 if tier not in (1, 2) or plan["body"].get("diagnosis", {}).get("confidence", 0) < (.85 if tier == 2 else .7):
                     raise ValueError("Action is below tier confidence or outside allowed tiers")
-            if approve and tier == 2:
-                if confirm_service != plan["body"]["action"]["service"]:
-                    raise ValueError("Tier 2 requires typing the exact service name")
+            if approve:
+                # every tier, not only tier 2: the dry run is what the human approves
                 dry = self.db.execute("SELECT detail FROM events WHERE incident=? AND kind='dry_run'", (plan["incident"],))
                 if not any(json.loads(row[0]).get("proposal_id") == proposal for row in dry):
-                    raise ValueError("Tier 2 requires a dry run before approval")
+                    raise ValueError("A dry run of this exact proposal is required before approval")
+            if approve and tier == 2 and confirm_service != plan["body"]["action"]["service"]:
+                raise ValueError("Tier 2 requires typing the exact service name")
             status = "approved" if approve else "rejected"
             self.db.execute("UPDATE proposals SET status=?,approver=? WHERE id=?", (status, approver, proposal))
             if not approve:
@@ -131,8 +133,18 @@ class Store:
             self.event(plan["incident"], status, {"proposal_id": proposal, "approver": approver})
 
     def killed(self):
+        """The stored switch (`kill on`), or the shared KILL file / INCIDENT_ZERO_KILL variable
+        that agent/act/killswitch.py checks, so one switch stops both entry points."""
         row = self.db.execute("SELECT value FROM settings WHERE key='kill'", ()).fetchone()
-        return row is not None and row[0] == "on"
+        if row is not None and row[0] == "on":
+            return True
+        try:
+            KillSwitch().check()
+        except RuntimeError:
+            return True
+        except OSError:
+            return True      # cannot tell: fail closed
+        return False
 
     def kill(self, enabled):
         with self.db:
@@ -155,6 +167,9 @@ class Store:
                 raise ValueError("At most two mutations per incident, including rollback")
             if any(p["body"]["action"]["id"] == body["action"]["id"] for p in consumed):
                 raise ValueError("Repeated actions require human escalation")
+            if not body.get("rollback") and any(p["body"]["action"]["service"] == body["action"]["service"]
+                                                and not p["body"].get("rollback") for p in consumed):
+                raise ValueError("A second corrective action on the same service requires human escalation")
             if body.get("rollback") and any(p["body"].get("rollback") for p in consumed):
                 raise ValueError("Only one rollback per incident")
             self.db.execute("UPDATE proposals SET status='consumed' WHERE id=?", (proposal,))

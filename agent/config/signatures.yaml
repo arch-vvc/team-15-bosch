@@ -1,0 +1,91 @@
+# Fault patterns for the rules engine (agent/rules/engine.py). One entry per telemetry
+# pattern, never per incident: conditions match typed facts in the current triage snapshot.
+#
+# Ported from incident_zero (container_stopped, oom_killed, restart_loop, cpu_saturation,
+# memory_pressure) plus the rules built on Eyes facts (errors_originate_in_service,
+# cpu_limit_lowered, memory_limit_lowered). Confidences are starting values to calibrate.
+#
+# "all" conditions must each match a fact of the candidate component; any "none" condition
+# that matches rules the pattern out (its look-alike explains the symptoms better).
+# A condition matches one fact of the candidate component:
+#   signal     the fact's signal (required)
+#   direction  up / down / same / absent
+#   value      exact value;  value_in: one of several;  min: numeric value at least this
+# cause names line up with agent/config/remedies.yaml; a cause without a remedy escalates.
+
+minimum_confidence: 0.7      # below this nothing is CONFIDENT
+minimum_margin: 0.15         # the top hypothesis must lead the next one by this much
+unknown_below: 0.3           # nothing at or above this means UNKNOWN
+
+signatures:
+  - id: container_stopped
+    cause: container_down
+    confidence: 0.9
+    summary: The container is not running; its callers fail because it is gone.
+    all:
+      - {signal: status, value_in: [exited, dead, missing, created]}
+    missing: [docker exit code and last log lines before the exit]
+
+  - id: oom_killed
+    cause: crash_loop
+    confidence: 0.92
+    summary: The container was killed for running out of memory.
+    all:
+      - {signal: oom_killed, value: true}
+    missing: [memory trend before the kill, whether the memory limit changed]
+
+  - id: restart_loop
+    cause: crash_loop
+    confidence: 0.9
+    summary: The container restarted since the baseline; repeated exits.
+    all:
+      - {signal: restarts, direction: up}
+    missing: [exit codes of the restarts]
+
+  - id: errors_originate_in_service
+    cause: service_errors
+    confidence: 0.8
+    summary: This service's own spans are the deepest failing ones while its error ratio is above baseline; its callers' errors are knock-on effects.
+    all:
+      - {signal: error_origin, min: 3}
+      - {signal: error_ratio, direction: up}
+    missing: [whether the errors share one attribute value, the service's own error logs]
+
+  - id: cpu_limit_lowered
+    cause: cpu_starvation
+    confidence: 0.85
+    summary: The container's CPU limit is below its baseline while its latency is above baseline.
+    all:
+      - {signal: cpu_limit, direction: down}
+      - {signal: p95_ms, direction: up}
+    missing: [when the limit changed (deploy history)]
+
+  - id: memory_limit_lowered
+    cause: memory_starvation
+    confidence: 0.85
+    summary: The container's memory limit is below its compose value; expect OOM restarts.
+    all:
+      - {signal: mem_limit, direction: down}
+    missing: [when the limit changed (deploy history)]
+
+  - id: cpu_saturation
+    cause: high_cpu
+    confidence: 0.8
+    summary: The container is using most of its CPU allowance while its latency is above baseline.
+    all:
+      - {signal: cpu_used, direction: up}
+      - {signal: p95_ms, direction: up}
+    none:
+      - {signal: cpu_limit, direction: down}
+    missing: [whether request rate rose first (traffic) or CPU rose on its own]
+
+  - id: memory_near_limit
+    cause: memory_leak
+    confidence: 0.75
+    summary: Memory use is close to the container limit while latency is above baseline; a leak is likely but one snapshot cannot prove growth.
+    all:
+      - {signal: mem_used, direction: up}
+      - {signal: p95_ms, direction: up}
+    none:
+      - {signal: mem_limit, direction: down}
+    missing: [memory growth over time]
