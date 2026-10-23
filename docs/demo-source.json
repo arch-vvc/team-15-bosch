@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/open-telemetry/opentelemetry-demo.git",
+  "checkout": "opentelemetry-demo",
+  "commit": "ad06a6f9df40abde6c1f0c58b29b92f1076a74ec",
+  "compose_files": ["compose.yaml", "compose.observability.yaml"],
+  "organizer_approved_version": false,
+  "image_version_policy": "Unmodified upstream defaults; application images use mutable latest tags. Record actual image digests after a successful pull before claiming reproducibility."
+}

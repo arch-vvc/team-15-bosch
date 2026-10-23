@@ -1,0 +1,17 @@
+# Where the read-only tools look. Every value can be overridden with an environment
+# variable of the same name in upper case, e.g. PROMETHEUS_URL.
+
+prometheus_url: http://localhost:9090
+jaeger_url: http://localhost:8080/jaeger/ui
+# OpenSearch has no fixed host port. "auto" reads it from `docker port opensearch 9200`.
+# Set to "" to skip OpenSearch and use docker logs only.
+opensearch_url: auto
+opensearch_index: otel-logs-*
+# Field names in the OpenSearch log documents. VERIFY against one real document (cookbook check 10).
+opensearch_fields:
+  timestamp: "@timestamp"
+  service: resource.service.name
+  severity: severity.text
+  body: body
+  trace_id: traceId
+http_timeout_s: 10

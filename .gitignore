@@ -4,3 +4,12 @@ __pycache__/
 .pytest_cache/
 action_log.jsonl
 /KILL
+*.egg-info/
+.env
+.env.*
+!.env.example
+.DS_Store
+output/
+vendor/
+/opentelemetry-demo/
+config/*.local.json

@@ -1,0 +1,47 @@
+# A owns the alert and anomaly thresholds; B owns the scoring weights; C owns the tiers.
+# Starting values, to be calibrated from practice runs.
+
+prometheus:
+  rate_window: 2m          # span metrics arrive about every 60 s, so 2m holds 2 or more samples
+  step_s: 15               # query_range resolution for onset
+
+baseline:
+  window_min: 10           # quiet period used as "normal"
+
+anomaly:                   # used by the alert watcher, triage and verify alike
+  error_ratio_mult: 3.0    # error_ratio > max(3 x baseline, baseline + 0.05)
+  error_ratio_add: 0.05
+  p95_mult: 2.0            # p95 > max(2 x baseline, baseline + 100 ms)
+  p95_min_delta_ms: 100
+  req_rate_mult: 3.0       # traffic flood: req_rate > max(3 x baseline, baseline + 5 req/s)
+  req_rate_min_delta: 5
+  min_req_rate: 0.05       # ignore services quieter than this (req/s) for ratio checks
+  silent_ratio: 0.1        # had traffic at baseline, now below 10 % of it = missing telemetry
+  cpu_limit_ratio: 0.9     # live cpu limit below 90 % of baseline = starvation
+  mem_limit_ratio: 0.9     # live memory limit below 90 % of compose value = starvation
+  mem_near_limit: 0.9      # memory used above 90 % of the limit
+  cpu_near_limit: 0.9      # cpu used above 90 % of a cpu limit (pinned at the cap)
+
+alert:
+  poll_interval_s: 15
+  consecutive_points: 2
+
+verify:
+  window_s: 180            # span metrics lag by up to the rate window, so allow 3 minutes
+  poll_s: 15
+  healthy_points: 3        # consecutive healthy polls needed to call it recovered
+
+traces:
+  lookback: 15m
+  limit: 20
+  concentration_share: 0.9 # one attribute value covers >= 90 % of errors
+  concentration_min_errors: 5
+  concentration_attributes: [demo.product.id, app.product.id, user.id, demo.user_context.loyalty_level, app.user.id]
+
+logs:
+  since_min: 10
+  tail: 300
+  top_messages: 5
+
+deploy_history:
+  lookback_min: 30

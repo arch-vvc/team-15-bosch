@@ -1,0 +1,96 @@
+{
+  "type": "object",
+  "properties": {
+    "component": {
+      "type": "string",
+      "enum": [
+        "ad",
+        "cart",
+        "checkout",
+        "currency",
+        "email",
+        "frontend",
+        "frontend-proxy",
+        "image-provider",
+        "payment",
+        "product-catalog",
+        "quote",
+        "recommendation",
+        "shipping",
+        "astronomy-db",
+        "valkey-cart",
+        "network",
+        "unknown"
+      ]
+    },
+    "root_cause": {
+      "type": "string"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "evidence_id",
+          "observation_index",
+          "field",
+          "value"
+        ],
+        "properties": {
+          "evidence_id": {
+            "type": "string"
+          },
+          "observation_index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "field": {
+            "type": "string"
+          },
+          "value": {
+            "type": [
+              "string",
+              "number",
+              "boolean",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "action_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "escalate": {
+      "type": "boolean"
+    },
+    "uncertainty": {
+      "type": "string"
+    },
+    "prevention": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "component",
+    "root_cause",
+    "confidence",
+    "claims",
+    "action_id",
+    "escalate",
+    "uncertainty",
+    "prevention"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Development diagnosis contract \u2014 not the organizer scoring schema"
+}

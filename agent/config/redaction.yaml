@@ -1,0 +1,43 @@
+# Flag data must never reach the ledger or the LLM (fault-signatures.md, section 2).
+# Breaking this risks disqualification, so tests fail if any of it survives a tool.
+
+# Services that are never queried and whose spans, edges and log lines are dropped.
+excluded_services: [flagd, flagd-ui]
+
+# Span events (Jaeger "logs") and attributes whose name contains any of these are dropped.
+drop_keys_containing: [feature_flag, openfeature]
+
+# Anything that names the flag system itself. A series, span or edge whose service,
+# operation or peer matches is dropped whole (it is a call to the flag service).
+flag_system_pattern: '(?i)feature[ _.-]?flags?|flagd|openfeature'
+
+# Text matching these is masked to "[redacted]" in every message, log line and status text.
+mask_patterns:
+  - '(?i)feature[ _.-]?flags?'
+  - '(?i)flagd'
+  - '(?i)openfeature'
+
+# The demo's 20 flag keys. Masked wherever they appear, in any case.
+flag_keys:
+  - adFailure
+  - adHighCpu
+  - adManualGc
+  - aiRunawayAgent
+  - aiSlowResponse
+  - cartFailure
+  - cartMetricCardinalityOverflow
+  - emailMemoryLeak
+  - emitRawPii
+  - failedReadinessProbe
+  - imageSlowLoad
+  - intlShippingSlowdown
+  - kafkaConsumerDead
+  - kafkaQueueProblems
+  - loadGeneratorFloodHomepage
+  - paymentFailure
+  - paymentUnreachable
+  - productCatalogFailure
+  - productCatalogLockContention
+  - recommendationCacheFailure
+
+mask_with: "[redacted]"

@@ -5,6 +5,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 class Contract(BaseModel):
     model_config = ConfigDict(extra="forbid", validate_assignment=True, allow_inf_nan=False)
 
+Direction = Literal["up", "down", "same", "absent"]
+
 # --- evidence (A produces, everyone reads) ---
 class Fact(Contract):
     service: str                 # e.g. "payment"
@@ -23,16 +25,17 @@ class Fact(Contract):
 
 SIGNALS = ["error_ratio","p95_ms","req_rate","hop_gap_ms","cpu_used","cpu_limit","mem_used",
            "mem_limit","restarts","oom_killed","status","gc_time","error_concentration",
-           "missing_telemetry","missing_edge"]
+           "missing_telemetry","missing_edge",
+           "error_count", "error_origin", "error_message", "log_count", "deploy_event", "uptime_s"]
 
 class Evidence(Contract):
-    id: str                      # "E1", "E2"… assigned by the ledger
+    id: str = ""                 # "E1", "E2"… assigned by the ledger
     tool: str
     query: dict
     ts: datetime                 # when we queried
-    onset_ts: datetime | None    # when the anomaly started (from traces or query_range)
+    onset_ts: datetime | None = None  # when the anomaly started
     facts: list[Fact]
-    examples: list[str] = []     # trace IDs, log line snippets (already redacted)
+    examples: list[str] = Field(default_factory=list)
     redacted: bool = True
 
 # --- snapshot and alert (A) ---
@@ -84,4 +87,4 @@ class VerifyResult(Contract):
 class Incident(Contract):
     alert: Alert; snapshot: TriageSnapshot; diagnoses: list[Diagnosis]
     actions: list[tuple[ActionProposal, Approval | None, ActionResult | None, VerifyResult | None]]
-    outcome: Literal["recovered","escalated","rejected","unknown"]; timeline: list[tuple[datetime, str]]
+    outcome: Literal["recovered","escalated","rejected","unknown"]; timeline: list[tuple[datetime, str]] = Field(default_factory=list)

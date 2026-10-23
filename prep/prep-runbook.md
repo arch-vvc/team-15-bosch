@@ -5,15 +5,15 @@ Step-by-step for the first session with the demo running. It fills in `fault-sig
 Shorthand used below:
 ```bash
 cd ~/Desktop/opentelemetry-demo
-DC="docker compose --env-file .env --env-file .env.override -f compose.yaml -f compose.observability.yaml -f compose.extras.yaml"
+dc() { docker compose --env-file .env --env-file .env.override -f compose.yaml -f compose.observability.yaml -f compose.extras.yaml "$@"; }
 ```
-Run the `DC=…` line once in each new terminal.
+Run the `dc() …` line once in each new terminal. It defines a `dc` shortcut that works in zsh, the macOS default shell.
 
 ---
 
 ## 0. Start (10 min)
 1. `make start-minimal`, then wait about 2 minutes.
-2. Check that everything is up: `$DC ps --format "table {{.Name}}\t{{.Status}}"`. Everything should be `Up`. Note any `Restarting`.
+2. Check that everything is up: `dc ps --format "table {{.Name}}\t{{.Status}}"`. Everything should be `Up`. Note any `Restarting`.
 3. Open:
    - the shop: http://localhost:8080
    - Jaeger: http://localhost:8080/jaeger/ui
@@ -30,7 +30,7 @@ Work through the **Live verification checklist** at the end of `query-cookbook.m
 - Record per service: request rate, error ratio and p95 (cookbook Tool 1, `[10m]` window).
 - Record the `RestartCount` of every container:
   ```bash
-  for c in $($DC ps -q); do docker inspect -f '{{.Name}} {{.RestartCount}}' $c; done
+  for c in $(dc ps -q); do docker inspect -f '{{.Name}} {{.RestartCount}}' $c; done
   ```
 - Note any service that errors **even when healthy**. That's background noise the thresholds must ignore.
 
@@ -69,9 +69,9 @@ Same procedure as section 3, but inject with Docker. **Always run the reset line
 | B | Crash/restart loop | `docker kill payment`, three times, 30 s apart | (auto-restarts) |
 | C | Cache down | `docker stop valkey-cart` | `docker start valkey-cart` |
 | D | Database down | `docker stop astronomy-db` | `docker start astronomy-db` |
-| E | CPU starvation | `docker update --cpus 0.05 ad` | `$DC up -d --force-recreate ad` |
-| F | Memory starvation | `docker update --memory 60m --memory-swap 60m recommendation` | `$DC up -d --force-recreate recommendation` |
-| G | Network latency | `docker run --rm --net container:shipping --cap-add NET_ADMIN nicolaka/netshoot tc qdisc add dev eth0 root netem delay 500ms` | `$DC up -d --force-recreate shipping` |
+| E | CPU starvation | `docker update --cpus 0.05 ad` | `dc up -d --force-recreate ad` |
+| F | Memory starvation | `docker update --memory 60m --memory-swap 60m recommendation` | `dc up -d --force-recreate recommendation` |
+| G | Network latency | `docker run --rm --net container:shipping --cap-add NET_ADMIN nicolaka/netshoot tc qdisc add dev eth0 root netem delay 500ms` | `dc up -d --force-recreate shipping` |
 | H | Packet loss | same as G with `netem loss 30%` | same as G |
 
 - **G and H** pull the `nicolaka/netshoot` image (a few hundred MB) the first time. They delay *all* of shipping's traffic, not just one hop. The organisers' version may be narrower.

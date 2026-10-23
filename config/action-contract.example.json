@@ -1,0 +1,23 @@
+{
+  "operator_confirmed": false,
+  "reviewed_by": "",
+  "base_url": "http://localhost:REPLACE_WITH_OFFICIAL_PORT",
+  "actions": [
+    {
+      "id": "REPLACE_WITH_ALLOWLISTED_ACTION_ID",
+      "service": "payment",
+      "description": "REPLACE_WITH_OFFICIAL_RUNBOOK_DESCRIPTION",
+      "path": "/REPLACE_WITH_DOCUMENTED_ACTION_PATH",
+      "body": {},
+      "accepted_field": "REPLACE_WITH_DOCUMENTED_ACCEPTANCE_FIELD",
+      "accepted_value": true,
+      "context_fields": {},
+      "header_env": {},
+      "tier": 1,
+      "signatures": [
+        "container_stopped"
+      ],
+      "rollback_action_id": null
+    }
+  ]
+}
