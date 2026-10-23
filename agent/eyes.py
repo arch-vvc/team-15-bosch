@@ -22,7 +22,7 @@ from agent import detect, summarize, triage, verify
 from agent.contracts import Alert
 from agent.ledger import Ledger
 from agent.tools import Toolbox, registry
-from agent.tools.backends import Backends
+from agent.tools.backends import BackendError, Backends
 
 
 def _backends(args) -> Backends:
@@ -169,7 +169,12 @@ def main(argv: list[str] | None = None) -> None:
 
     args = p.parse_args(argv)
     registry.assert_read_only()
-    args.fn(args)
+    try:
+        args.fn(args)
+    except BackendError as e:
+        print(f"error: {e}", file=sys.stderr)
+        print("check the backend is up: curl -s -m 5 localhost:9090/-/ready ; docker ps", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
