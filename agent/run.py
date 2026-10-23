@@ -7,6 +7,7 @@ dry run, action safety (C) -> approval, report, memory (E), driven by agent.main
   --replay FILE   run from a recorded JSONL file instead of the live demo
   --record FILE   save every backend response while running live
   --auto-reject   never approve (evaluation runs score the diagnosis only)
+  --llm           auto | gemini | openai | none  (keys in .env: GEMINI_API_KEY or OPENAI_API_KEY)
 
 Needs a baseline first: python -m agent.eyes baseline (no fault active).
 Actions use a preview-only adapter until the organisers' Action API exists: the approval
@@ -50,10 +51,22 @@ def dependencies(b: Backends, base, alert, approval, model=None, adapter=None, s
     eyes = EyesContext(tb, alert, verification_sleep=verification_sleep)
     return Dependencies(
         ledger=ledger, triage=eyes, engine=Engine(), validate=validate,
-        investigator=Investigator.from_eyes(model or NoModel(), tb),
+        # model calls can take tens of seconds; 8 tool calls max still applies
+        investigator=Investigator.from_eyes(model or NoModel(), tb, timeout_s=45, total_s=240),
         remedy=Remedy(),
         actions=Actions(adapter or PreviewOnlyAdapter(), KillSwitch(), ActionLog(str(state_dir / "action_log.jsonl"))),
         approval=approval, verify=eyes, report=report, memory=Memory(state_dir / "memory.json"))
+
+
+def choose_model(which: str = "auto", name: str | None = None):
+    from agent.llm.gemini import GeminiAdapter
+    if which in ("auto", "gemini"):
+        model = GeminiAdapter.from_env(name)
+        if which == "gemini" or not isinstance(model, NoModel):
+            return model
+    if which in ("auto", "openai"):
+        return ResponsesAdapter.from_env(name)
+    return NoModel()
 
 
 def handle(b, base, alert, approval, model=None, out_dir=Path("runs"), verification_sleep=None):
@@ -75,7 +88,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--record")
     p.add_argument("--baseline", default=str(baseline_mod.DEFAULT_PATH))
     p.add_argument("--auto-reject", action="store_true")
-    p.add_argument("--model", help="model name for the LLM fallback (key and default in .env)")
+    p.add_argument("--llm", choices=["auto", "gemini", "openai", "none"], default="auto",
+                   help="LLM fallback; auto = Gemini if GEMINI_API_KEY is set, else OpenAI if OPENAI_API_KEY, else none")
+    p.add_argument("--model", help="model name for the LLM fallback (default from .env)")
     p.add_argument("--max-min", type=float, help="watch: give up after this many minutes")
     p.add_argument("--out", default="runs")
     args = p.parse_args(argv)
@@ -105,7 +120,8 @@ def main(argv: list[str] | None = None) -> int:
             print("Nothing abnormal.")
             return 0
         print(f"ALERT: {detect.fmt_alert(alert)}", file=sys.stderr)
-        model = NoModel() if replay else ResponsesAdapter.from_env(args.model)
+        model = choose_model(args.llm, args.model)
+        print(f"LLM fallback: {getattr(model, 'label', 'none')} {getattr(model, 'model', '')}".rstrip(), file=sys.stderr)
         approval = AutoReject() if args.auto_reject else CliApproval()
         incident, md, out = handle(b, base, alert, approval, model=model, out_dir=Path(args.out),
                                    verification_sleep=(lambda s: None) if replay else None)

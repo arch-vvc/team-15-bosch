@@ -4,8 +4,8 @@ Signatures live in config/signatures.yaml (telemetry patterns, never incident na
 Every matching (component, cause) becomes a hypothesis citing the evidence IDs whose facts
 matched. The diagnosis state follows the brief:
   CONFIDENT  top confidence >= 0.7 and it leads every competing hypothesis by >= 0.15,
-  UNKNOWN    nothing matched at or above 0.3,
-  UNCERTAIN  anything else (the LLM investigator gets a turn).
+  UNKNOWN    nothing matched at or above 0.3 and nothing is abnormal,
+  UNCERTAIN  anything else, including abnormal telemetry no pattern explains (the LLM's turn).
 Hypotheses compete when they name the same component or components on one call path;
 two faults in unrelated services do not make each other uncertain.
 Memory hints only reorder equally confident hypotheses; they never change confidence.
@@ -93,11 +93,18 @@ class Engine:
                                  supporting_evidence=h["support"], contradicting_evidence=[],
                                  missing_evidence=h["missing"], source="rules")
                       for i, h in enumerate(ranked, 1)]
-        return self._state(hypotheses, ranked, reach)
+        abnormal = {f"{f.service}:{f.signal}" for _, f in facts
+                    if f.direction in ("up", "down", "absent") and f.signal not in ("error_count",)}
+        return self._state(hypotheses, ranked, reach, abnormal)
 
-    def _state(self, hypotheses: list[Hypothesis], ranked: list[dict], reach) -> Diagnosis:
+    def _state(self, hypotheses: list[Hypothesis], ranked: list[dict], reach, abnormal: set[str]) -> Diagnosis:
         c = self.config
         if not hypotheses or hypotheses[0].confidence < c["unknown_below"]:
+            if abnormal:
+                # something is clearly wrong but no known pattern explains it: the LLM's turn
+                return Diagnosis(state="UNCERTAIN", hypotheses=hypotheses, selected_id=None,
+                                 reason="Abnormal telemetry matched no known fault pattern: "
+                                        + ", ".join(sorted(abnormal)[:8]) + ".")
             return Diagnosis(state="UNKNOWN", hypotheses=hypotheses, selected_id=None,
                              reason="No fault pattern matched the current telemetry.")
         top = hypotheses[0]

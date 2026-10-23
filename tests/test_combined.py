@@ -33,8 +33,8 @@ def snapshot_for(world=None, after_baseline=None):
     if after_baseline:
         after_baseline(w)
     tb = Toolbox(b, Ledger(), base)
-    alert = detect.pick(detect.poll(b, base))
-    return tb, triage.snapshot(tb, alert), w
+    found = detect.poll(b, base)
+    return tb, triage.snapshot(tb, detect.pick(found) if found else None), w
 
 
 # --- engine --------------------------------------------------------------------------------
@@ -76,11 +76,17 @@ def test_engine_high_cpu_without_a_limit():
     assert (d.state, d.hypotheses[0].component, d.hypotheses[0].cause) == ("CONFIDENT", "ad", "high_cpu")
 
 
-def test_engine_unknown_when_nothing_matches():
-    w = fakes.World()
-    w.services = fakes.healthy_services()
-    w.services["shipping"]["p95"] = 900.0
-    tb, snap, _ = snapshot_for(w)
+def test_engine_hands_unexplained_symptoms_to_the_llm():
+    def slow(w):
+        w.services = fakes.healthy_services()
+        w.services["shipping"]["p95"] = 900.0       # slow, but no rule explains it
+    tb, snap, _ = snapshot_for(after_baseline=slow)
+    d = Engine().diagnose(snap, tb.ledger)
+    assert d.state == "UNCERTAIN" and "shipping:p95_ms" in d.reason
+
+
+def test_engine_unknown_when_nothing_is_abnormal():
+    tb, snap, _ = snapshot_for(after_baseline=lambda w: setattr(w, "services", fakes.healthy_services()))
     assert Engine().diagnose(snap, tb.ledger).state == "UNKNOWN"
 
 
@@ -309,3 +315,113 @@ def test_incident_zero_honours_the_shared_kill_file(tmp_path, monkeypatch):
     (tmp_path / "KILL").unlink()
     monkeypatch.setenv("INCIDENT_ZERO_KILL", "1")
     assert store.killed()
+
+
+# --- Gemini --------------------------------------------------------------------------------
+
+def _gemini(handler, model="gemini-3.5-flash-lite"):
+    import httpx
+    from agent.llm.gemini import GeminiAdapter
+    return GeminiAdapter("test-key", model, http=httpx.Client(transport=httpx.MockTransport(handler)), fallbacks=[])
+
+
+def test_gemini_schema_is_reduced_to_what_gemini_accepts():
+    from agent.llm.gemini import to_gemini_schema
+    from agent.llm.investigator import Output
+    from agent.tools import registry
+    banned = {"$ref", "$defs", "additionalProperties", "title", "pattern", "anyOf", "default"}
+
+    def keywords(node):
+        """Schema keywords in use, skipping property names (a property may be called "pattern")."""
+        if not isinstance(node, dict):
+            return set()
+        found = set(node) - {"properties"}
+        for key, value in node.items():
+            children = value.values() if key == "properties" else [value] if isinstance(value, dict) else \
+                value if isinstance(value, list) else []
+            for child in children:
+                found |= keywords(child)
+        return found
+
+    for schema in [Output.model_json_schema()] + [s["input_schema"] for s in registry.schemas()]:
+        converted = to_gemini_schema(schema)
+        assert not keywords(converted) & banned, converted
+    hyp = to_gemini_schema(Output.model_json_schema())["properties"]["hypotheses"]["items"]
+    assert hyp["properties"]["source"]["enum"] == ["rules", "llm"]
+    assert hyp["properties"]["confidence"]["maximum"] == 1
+
+
+def test_gemini_round_trip_through_the_investigator():
+    tb, snap, _ = snapshot_for()
+    seen = []
+
+    def handler(request):
+        seen.append(request)
+        body = json.loads(request.content)
+        assert body["toolConfig"]["functionCallingConfig"]["mode"] == "ANY"
+        assert "generationConfig" not in body                       # gemini 3: default temperature
+        names = {d["name"] for d in body["tools"][0]["functionDeclarations"]}
+        assert "submit_diagnosis" in names and not names & {"restart_service", "toggle_flag"}
+        if len(seen) == 1:
+            part = {"functionCall": {"name": "search_traces", "args": {"service": "payment"}}}
+        else:
+            eid = [e for e in snap.evidence_ids if tb.ledger.get(e).tool == "search_traces"][0]
+            h = {"id": "H1", "component": "payment", "cause": "service_errors", "confidence": 0.8,
+                 "supporting_evidence": [eid], "contradicting_evidence": [], "missing_evidence": [], "source": "llm"}
+            part = {"functionCall": {"name": "submit_diagnosis",
+                                     "args": {"hypotheses": [h], "selected_diagnosis": "H1", "reason": "r"}}}
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [part]}}]})
+
+    import httpx
+    d = asyncio.run(Investigator.from_eyes(_gemini(handler), tb).investigate(snap, tb.ledger, Engine().diagnose(snap, tb.ledger)))
+    assert d.state == "CONFIDENT" and d.hypotheses[0].component == "payment"
+    assert all(r.headers["x-goog-api-key"] == "test-key" and "test-key" not in str(r.url) for r in seen)
+    assert seen[0].url.path.endswith("/models/gemini-3.5-flash-lite:generateContent")
+
+
+def test_gemini_errors_escalate_without_leaking_the_key():
+    import httpx
+    tb, snap, _ = snapshot_for()
+    calls = []
+    adapter = _gemini(lambda r: calls.append(1) or httpx.Response(429, text="quota test-key"))
+    with pytest.raises(RuntimeError) as err:
+        adapter._post({})
+    assert "429" in str(err.value) and "test-key" not in str(err.value)
+    assert len(calls) == 2                                           # one wait-and-retry, then gave up
+    d = asyncio.run(Investigator.from_eyes(adapter, tb).investigate(snap, tb.ledger, Engine().diagnose(snap, tb.ledger)))
+    assert d.state == "UNKNOWN"
+
+
+def test_gemini_2_gets_temperature_zero():
+    body = _gemini(lambda r: None, model="gemini-2.5-flash").body([], "s", {}, {"type": "object"}, 0)
+    assert body["generationConfig"] == {"temperature": 0}
+
+
+def test_model_choice_from_env(tmp_path, monkeypatch):
+    from agent.run import choose_model
+    monkeypatch.chdir(tmp_path)
+    for key in ("GEMINI_API_KEY", "OPENAI_API_KEY", "GEMINI_MODEL"):
+        monkeypatch.delenv(key, raising=False)
+    assert isinstance(choose_model("auto"), NoModel)
+    (tmp_path / ".env").write_text("GEMINI_API_KEY='abc'\nGEMINI_MODEL=gemini-2.5-flash\n")
+    model = choose_model("auto")
+    assert (model.label, model.model, model.key) == ("gemini", "gemini-2.5-flash", "abc")
+    assert isinstance(choose_model("none"), NoModel)
+
+
+def test_gemini_moves_to_the_next_model_when_one_is_busy(monkeypatch):
+    import httpx
+    from agent.llm import gemini
+    monkeypatch.setattr(gemini.time, "sleep", lambda s: None)
+    asked = []
+
+    def handler(request):
+        model = request.url.path.split("/")[-1].split(":")[0]
+        asked.append(model)
+        if model == "gemini-3.5-flash-lite":
+            return httpx.Response(503)
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": "ok"}]}}]})
+
+    adapter = gemini.GeminiAdapter("k", http=httpx.Client(transport=httpx.MockTransport(handler)))
+    adapter._post({})
+    assert asked == ["gemini-3.5-flash-lite", "gemini-flash-lite-latest"] and adapter.last_model == "gemini-flash-lite-latest"
