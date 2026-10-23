@@ -7,5 +7,12 @@ class KillSwitch:
 
     def check(self):
         # Any nonempty value except explicit false is fail-closed.
-        if self.path.exists() or os.getenv(self.env, '').lower() not in ('', '0', 'false'):
+        try:
+            self.path.lstat()
+        except FileNotFoundError:
+            marker_exists = False
+        else:
+            marker_exists = True
+        # Permission/I/O errors propagate rather than silently treating a marker as absent.
+        if marker_exists or os.getenv(self.env, '').lower() not in ('', '0', 'false'):
             raise RuntimeError('Kill switch active')

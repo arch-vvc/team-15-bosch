@@ -20,6 +20,9 @@ class Remedy:
         h, c = hypothesis, self.config
         if diagnosis.state != 'CONFIDENT' or diagnosis.selected_id != h.id:
             return None
+        selected = [item for item in diagnosis.hypotheses if item.id == h.id]
+        if len(selected) != 1 or selected[0] != h:
+            return None
         action = c['remedies'].get(h.cause)
         if not action:
             return None

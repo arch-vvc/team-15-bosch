@@ -1,3 +1,110 @@
+# Publication authorization update — 23 October 2026
+
+The user subsequently confirmed via GitHub email settings that the existing commit-author email is verified on account `AryanKhanDev`. Preserve the existing author identity `Aryan Khan <aryankhan7847@gmail.com>` for genuine contribution commits. The earlier staging denial below remains historical; the user resumed the publication workflow after checking attribution. Publish only the reviewed Person C scope with a normal fast-forward push; do not rewrite history or create attribution-only commits. GitHub contributor display remains subject to its processing and attribution rules.
+
+---
+
+# Final Person C audit — 23 October 2026
+
+**Readiness: ready to commit the scoped Person C patch after the fixes below. Live action execution is not ready.** This section records the final review; earlier sections remain historical. The user's direct instruction authorizes publication after validation, superseding the pasted audit's commit/push prohibition. Publication must be a normal fast-forward of remote main, never a force push or history replacement.
+
+## Findings and fixes
+
+- **Critical:** none found in the reviewed Person C path. This is a bounded code/test review, not a production-safety certification.
+- **High, fixed — stale recovery evidence:** `agent/main.py:run` previously allowed an existing diagnosis evidence ID to substantiate recovery. It now records the pre-verification ledger IDs and requires newly collected, existing, redacted evidence with typed facts. Missing and stale IDs cannot produce recovered memory entries. Semantic recovery determination remains A's verifier's responsibility; neither ID freshness nor these contracts independently proves causality.
+- **High, fixed — post-rollback recovery claim:** `agent/act/actions.py:Actions.verified` could be called after a rollback. Rollback is now terminal for recovery claims; rollback exceptions or negative results also mark execution uncertain. The orchestrator always escalates after rollback.
+- **Medium, fixed — shared investigation state:** `agent/llm/investigator.py:Investigator.investigate/from_eyes` now rejects concurrent investigators on the same ledger, mismatched Eyes ledgers, and new investigations while a timed-out synchronous read is still active. A guarded executor future is shielded from async cancellation; its worker releases the read guard only on actual completion. Cancellation cannot stop an already dispatched backend operation. The guard is process-local and does not coordinate separate processes or arbitrary direct calls to Eyes outside this adapter.
+- **Medium, fixed — overlapping action callers:** `Actions` serializes preview, binding, execution, verification and rollback state operations with a nonblocking reentrant lock. Concurrent callers are rejected, including while an approval freshness check or action dispatch is in progress. Existing single-use binding and mutation counts still apply. State is in-memory, not restart-durable.
+- **Low:** previous handoff coverage counts and the concurrency instruction are superseded by the verified behavior/results here. No threshold or shared interface field was changed.
+- **High, unresolved outside this ownership boundary:** the previously demonstrated `incident_zero` T1 dry-run, repeat-service and central-redaction gaps remain separate team-owned work. `incident_zero/` is byte-identical to fetched main in this patch. Passing synthetic/unit tests does not establish that package is safe for live use.
+
+## Exact commit scope
+
+Only these eight files contain the Person C improvements carried forward from the preceding session and the final audit:
+
+1. `agent/main.py` — actual Eyes triage/verify adapter and fresh recovery-evidence gate.
+2. `agent/llm/investigator.py` — actual Eyes registry/redactor adapter, deploy history, container targets and shared-ledger/worker guards; eight-call and timeout budgets retained; no action interface.
+3. `agent/act/actions.py` — exact/fresh approval, known-execution verification/rollback gates, shared two-mutation budget, typed rollback, uncertainty closure and concurrent-client protection.
+4. `agent/act/remedy.py` — selected hypothesis ID/content binding.
+5. `agent/act/killswitch.py` — present/dangling/inaccessible marker handling, with pre-dispatch checks for execution and rollback.
+6. `agent/act/action_log.py` — finite JSON audit output; intent fsync before adapter dispatch retained.
+7. `tests/test_person_c.py` — **64 cases**, including new concurrency, lingering worker, stale recovery, fsync, rollback-terminal and finite-value regressions. Rules/model/UI/API doubles are explicitly synthetic; the Eyes integration tests execute actual Eyes modules against fake backends.
+8. `PERSON_C_HANDOFF.md` — preserved historical handoff plus this evidence-based audit and remaining blockers.
+
+`agent/contracts.py` is unchanged in this audit: strict fields, finite-number handling, confidence/tier bounds, all six Eyes signals and Evidence defaults remain as merged in `8a62e27`. No Eyes production modules, thresholds, schemas, upstream `incident_zero` code, README, scoring harness or submodule files are in this commit scope.
+
+## Actual checks from this final audit
+
+- Starting focused run: `.venv/bin/python -m pytest -q tests/test_person_c.py` — **52 passed** before audit fixes.
+- Final focused run, same command — **64 passed in 0.86s**.
+- `.venv/bin/python -m pytest -q tests -k 'not test_services_yaml_matches_compose'` (invoked with the absolute repository interpreter to use approved loopback-test permission) — **187 passed, 1 deselected, 4 subtests passed in 4.34s**, Python 3.14.7.
+- `/tmp/bosch-person-c-py311/bin/python -m pytest -q tests/test_person_c.py tests/test_pipeline.py tests/test_redact.py tests/test_tools.py -k 'not test_services_yaml_matches_compose'` — **119 passed, 1 deselected in 0.90s**, Python 3.11.
+- `.venv/bin/python -m agent.main` — successful configuration-status output; real Action API is disabled pending collaborators/contract.
+- `.venv/bin/python -m compileall -q agent` — passed.
+- `git diff --check` — passed.
+
+The submodule-reading Compose check was excluded, and no unrelated submodule tests were collected. No Docker, live telemetry, real LLM or organiser Action API call was made. No package installation or dependency upgrade was needed in this audit. HTTP tests used synthetic loopback servers. Existing upstream model/transport/rules tests still pass.
+
+## Safety assessment and blockers
+
+Approval remains bound to exact proposal content, a matching successful preview, operator identity, preview ordering and expiry; a consumed approval cannot dispatch again. T2 and all rollback approvals require typed target confirmation. Mutation intent must be durably appended before dispatch; write/fsync failure blocks dispatch; post-call log failure leaves uncertain state. Kill markers and environment stop settings are checked immediately before every adapter call, including rollback. Failed/ambiguous mutations cannot be retried or cleared through verification. At most two mutation attempts total, including at most one supported separately approved rollback; forward targets cannot repeat; every forward action must be verified before another.
+
+Official API/schema interoperability, production B engine/semantic validator, E approval/report/memory collaborators, live recovery and actual model quality are still unimplemented or unverified. The Person C default adapter remains disabled. Caller-supplied verification remains a trusted production dependency: the new freshness gate prevents stale/fabricated IDs, but does not replace its metric/recovery policy. Do not reuse an in-memory Actions instance across incidents/restarts, or infer that ledger/thread guards provide cross-process durability.
+
+## Preservation and publication
+
+Initial state: branch `feature/person-c`, HEAD `8a62e27`, the eight modified paths above, and pre-existing modified-content submodule status; no untracked paths. Exact pre-audit copies, original status and original Person C diff are preserved at `/tmp/person-c-final-audit-6hiv2bhl/`. The contract and all existing source changes were retained; no branch switch, merge, rebase, reset, clean, stash or submodule operation was performed in this audit. Fetched main remains `ddb504d58130579f29857b8a7b1e80ae71911dcf` at validation time.
+
+**Publication attempt:** the approval prompt rejected staging the eight reviewed files. No reason beyond rejection was supplied. Nothing was staged, committed or pushed; HEAD remains `8a62e27` and the reviewed changes remain in the working tree. Do not bypass that denial.
+
+If publication is subsequently authorized: stage only the eight listed files, check the staged list and whitespace, commit the reviewed Person C patch, then publish with `git push origin HEAD:main`. This is eligible as a fast-forward because existing main is already an ancestor of this integrated branch. If the remote advances or rejects the update, stop rather than forcing it. Keep the submodule unstaged and do not claim its pre-existing modification has been reviewed.
+
+---
+
+# Integration update — 23 October 2026
+
+The original handoff below describes commit `d71fdd2`; this section records the current integration and supersedes its statements that Eyes/main modules are absent.
+
+## Pull and preservation
+
+- Fetched `origin/main` at `ddb504d58130579f29857b8a7b1e80ae71911dcf` and completed the user-authorized merge as `8a62e27` on `feature/person-c`. No push was performed.
+- Exact pre-pull copies of contracts and all 31 untracked Eyes files, a SHA-256 manifest, local contract patch, and initial Git status are saved at `/tmp/person-c-before-pull-dia693fb/`. The untracked files were first checked byte-for-byte against fetched main, then moved into the backup so Git could materialize tracked versions. They were not discarded.
+- Merge conflicts were limited to `.gitignore` and `agent/contracts.py`. Resolution retains both ignore lists, C's strict signal/confidence/tier validation, the six Eyes signals and Evidence defaults, and upstream's `Direction` alias / default incident timeline. Those compatibility edits are now included in the merge commit.
+- No submodule update, read of its contents, Docker command or flag-state inspection was performed during this implementation pass. No teammate-owned source files were edited after the merge. The existing modified submodule remains present.
+
+## Person C improvements (uncommitted for review)
+
+- `agent/main.py`: `EyesContext` adapts actual `triage.snapshot(toolbox, alert)` and `verify.check(toolbox, alert, window_s)` without editing Eyes. Its injectable verification sleep is for synthetic tests. Verification must cite existing redacted ledger evidence before recovery can enter incident memory.
+- `agent/llm/investigator.py`: `Investigator.from_eyes(model, toolbox)` wraps A's actual synchronous registry with async worker calls, preserves registry argument validation, and uses A's central scrub/leak checks. Adds the actual `deploy_history` tool and supports datastore targets found in snapshot containers. The LLM still receives no action interface, has at most eight calls, and cites ledger IDs. Backend reads already dispatched into worker threads cannot be cancelled; each backend's own transport timeout still applies. Do not share a toolbox across concurrent investigators.
+- `agent/act/remedy.py`: refuses a substituted hypothesis whose ID matches but contents differ from the selected validated diagnosis, and refuses duplicate selected IDs.
+- `agent/act/actions.py`: canonical proposal serialization; rejects nonpositive approval TTL; closes the client after failed/ambiguous execution or post-call audit failure; prevents recovery/rollback from clearing that uncertain state. Rollback requires known successful execution followed by failed verification, distinct preview, typed target confirmation even for a T1 original, and a remaining mutation slot. Both corrective dispatches and rollback now consume the same two-mutation budget. Preview text explicitly identifies rollback and its typed-confirmation requirement. A fresh client per incident and one orchestrator owner are still required; durability is supplied only by the separate upstream implementation.
+- `agent/act/killswitch.py`: uses `lstat` so dangling markers stop execution, and propagates permission/I/O failures instead of assuming no marker exists.
+- `agent/act/action_log.py`: rejects NaN/infinity before appending invalid JSON; retains append-only, write-ahead fsync behavior.
+- `tests/test_person_c.py`: **52 cases**, including both confident-rule and LLM-fallback orchestrator paths through real Eyes triage, registry, redactor, ledger and recovery code over synthetic backends; plus substituted diagnosis, registry argument rejection, rollback gates/budget, uncertain execution, bad recovery evidence, inaccessible/dangling kill markers and invalid audit JSON tests. The model, rules/validator, E interfaces and Action API remain explicit test doubles where needed.
+- `PERSON_C_HANDOFF.md`: this integration update, observed checks and remaining boundaries.
+
+These are local adapters and safety behavior changes, not renames of Part 2 fields. For E's eventual approval UI: rollback preview is explicitly labeled, and approval must include `typed_confirmation == target` regardless of the original proposal's tier. No rollback endpoint or inverse behavior has been invented.
+
+## Verification actually run
+
+- Repository environment, Python 3.14: `.../.venv/bin/python -m pytest -q tests -k 'not test_services_yaml_matches_compose'` — **175 passed, 1 deselected, 4 subtests passed**. Synthetic loopback HTTP tests ran with the required sandbox permission. This includes all upstream new-package tests plus Eyes and Person C tests.
+- Python 3.11 temporary environment: `/tmp/bosch-person-c-py311/bin/python -m pytest -q tests/test_person_c.py tests/test_pipeline.py tests/test_redact.py tests/test_tools.py -k 'not test_services_yaml_matches_compose'` — **107 passed, 1 deselected**.
+- Person C alone: `.venv/bin/python -m pytest -q tests/test_person_c.py` — **52 passed**.
+- `.venv/bin/python -m agent.main` succeeds and identifies that official API dependencies must be supplied. `git diff --check` passes.
+- The submodule-reading Compose consistency test was deliberately excluded. No unrelated submodule tests were collected.
+- Python 3.11 initially stopped at import because the old temporary environment lacked Eyes' declared `httpx` dependency; installing `httpx==0.28.1` there fixed collection. No global packages were installed.
+- The first new registry integration test used a minimal snapshot containing payment but requested checkout. The target guard correctly rejected it. The test was corrected to use the real Eyes snapshot; all final checks above passed.
+
+## Remaining boundaries
+
+`incident_zero/` remains the upstream primary CLI, unchanged by these Person C improvements. Its previously demonstrated T1 dry-run, repeat-service and redaction gaps are not repaired by changing `agent/`; a team-agreed patch to those separately owned files is still needed before live adoption. No monkey-patching or import-time safety override was added.
+
+Person C's `run()` can now integrate A's interfaces through `EyesContext` and `Investigator.from_eyes`, but B's production engine/validator and E's UI/report/memory adapters must still be supplied. Tests provide explicit doubles, not hidden production answers. The new-package dictionaries and SQLite evidence cannot be passed directly into Part 2 Pydantic collaborators; no mechanical cross-architecture adapter is claimed.
+
+No shared threshold edits, official API/schema interoperability, real model quality, live recovery, scoring or hidden-incident performance is claimed. Real execution in the Person C adapter remains disabled until the official contract is provided. Original implementation details follow for historical context.
+
+---
+
 # Person C implementation handoff
 
 Branch: `feature/person-c`. This is a tested local vertical slice, not a live-stack integration or an organiser-schema compliance claim.

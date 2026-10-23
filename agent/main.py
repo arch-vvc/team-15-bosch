@@ -6,6 +6,26 @@ from datetime import datetime, timezone
 from agent.contracts import Incident
 
 @dataclass
+class EyesContext:
+    """Adapt Person A's actual Toolbox-based functions to Part 2 dependencies.
+
+    Pass this object as both ``triage`` and ``verify`` in Dependencies. Baseline
+    remains owned by the toolbox; no second baseline is inferred from a snapshot.
+    """
+    toolbox: object
+    alert: object
+    verification_sleep: object = None
+
+    def snapshot(self):
+        from agent import triage
+        return triage.snapshot(self.toolbox, self.alert)
+
+    def check(self, alert, baseline, window_s=150):
+        from agent import verify
+        options = {'sleep': self.verification_sleep} if self.verification_sleep is not None else {}
+        return verify.check(self.toolbox, alert, window_s=window_s, **options)
+
+@dataclass
 class Dependencies:
     ledger: object
     triage: object
@@ -62,7 +82,14 @@ async def run(alert, d):
                 # Failure can be partial. Never retry an uncertain mutation.
                 break
             transition('VERIFY')
+            previous_evidence = {item.id for item in d.ledger.all()}
             verified = d.verify.check(alert, snapshot, window_s=150)
+            if not verified.evidence_ids:
+                raise ValueError('Recovery verification requires ledger evidence')
+            for evidence_id in verified.evidence_ids:
+                evidence = d.ledger.get(evidence_id)
+                if evidence_id in previous_evidence or not evidence.redacted or not evidence.facts:
+                    raise ValueError('Recovery requires fresh, redacted, typed ledger evidence')
             actions[-1] = (p, approval, result, verified)
             d.actions.verified(p, verified)
             if not verified.recovered:

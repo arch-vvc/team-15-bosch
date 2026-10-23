@@ -4,6 +4,8 @@ Registry integration is explicit until Person A publishes its actual representat
 import asyncio
 import json
 import re
+from threading import Lock
+from weakref import WeakKeyDictionary
 from dataclasses import dataclass
 from typing import Callable
 from pydantic import BaseModel, ConfigDict
@@ -11,7 +13,16 @@ from agent.contracts import Diagnosis, Hypothesis, Evidence
 
 READ_ONLY = frozenset({'service_health_overview', 'service_detail', 'hop_latency',
                       'search_traces', 'container_health', 'search_logs', 'onset',
-                      'baseline', 'service_dependencies'})
+                      'baseline', 'service_dependencies', 'deploy_history'})
+
+# Shared across investigator instances, without keeping discarded ledgers alive.
+_LEDGER_GATES = WeakKeyDictionary()
+_GATES_LOCK = Lock()
+
+
+def _gates(ledger):
+    with _GATES_LOCK:
+        return _LEDGER_GATES.setdefault(ledger, (Lock(), Lock()))
 
 @dataclass(frozen=True)
 class ReadOnlyTool:
@@ -32,13 +43,69 @@ class Investigator:
             raise ValueError('Registry must contain explicit read-only tools only')
         self.model, self.registry, self.safe = model, registry, safe_payload
         self.timeout_s, self.total_s = timeout_s, total_s
+        self._eyes_ledger = None
+
+    @classmethod
+    def from_eyes(cls, model, toolbox, **kwargs):
+        """Use A's registry validation and ledger without editing its synchronous API.
+
+        Blocking read-only backends run in a worker thread. Their own transport
+        timeouts still apply; cancellation cannot stop an in-flight backend read.
+        Concurrent investigations on one ledger are rejected, including while a
+        timed-out backend read is still running. Guards are in-process only.
+        """
+        from agent.tools import registry, redact
+        registry.assert_read_only()
+        worker_gate = _gates(toolbox.ledger)[1]
+        tools = {}
+        for spec in registry.schemas():
+            def make_call(name):
+                async def call(**arguments):
+                    if not worker_gate.acquire(blocking=False):
+                        raise ValueError('A previous Eyes backend read is still active')
+                    def invoke():
+                        try:
+                            return registry.call(toolbox, name, arguments)
+                        finally:
+                            worker_gate.release()
+                    try:
+                        job = asyncio.get_running_loop().run_in_executor(None, invoke)
+                    except BaseException:
+                        worker_gate.release()
+                        raise
+                    # Shield the underlying read; cancellation must not release its
+                    # guard before the synchronous backend actually finishes.
+                    job.add_done_callback(lambda done: done.exception() if not done.cancelled() else None)
+                    result = await asyncio.shield(job)
+                    if 'error' in result:
+                        raise ValueError('Eyes registry rejected the tool call')
+                    return result['evidence']
+                return call
+            tools[spec['name']] = ReadOnlyTool(make_call(spec['name']), spec['input_schema'])
+
+        def safe_payload(value):
+            clean = redact.scrub(value)
+            if redact.find_leaks(clean):
+                raise ValueError('Telemetry redaction failed')
+            return clean
+        investigator = cls(model, tools, safe_payload, **kwargs)
+        investigator._eyes_ledger = toolbox.ledger
+        return investigator
 
     async def investigate(self, snapshot, ledger, diagnosis):
+        investigation_gate, worker_gate = _gates(ledger)
+        if not investigation_gate.acquire(blocking=False):
+            return Diagnosis(state='UNKNOWN', hypotheses=[], selected_id=None,
+                             reason='Another investigation owns this ledger')
         try:
+            if worker_gate.locked() or (self._eyes_ledger is not None and ledger is not self._eyes_ledger):
+                raise ValueError('Eyes ledger mismatch or previous backend read still active')
             return await asyncio.wait_for(self._loop(snapshot, ledger, diagnosis), self.total_s)
         except (Exception, asyncio.TimeoutError):
             return Diagnosis(state='UNKNOWN', hypotheses=[], selected_id=None,
                              reason='Investigation failed or exceeded safety budget')
+        finally:
+            investigation_gate.release()
 
     async def _loop(self, snapshot, ledger, diagnosis):
         # safe_payload is Person A's redaction adapter; mandatory even for initial input.
@@ -65,7 +132,7 @@ class Investigator:
                     if re.search(r'feature[ _.-]?flag|flagd|openfeature', json.dumps(args), re.I):
                         raise ValueError('Forbidden telemetry target')
                     for key in ('service', 'caller', 'callee'):
-                        if key in args and args[key] not in {s.service for s in snapshot.services}:
+                        if key in args and args[key] not in {s.service for s in [*snapshot.services, *snapshot.containers]}:
                             raise ValueError('Unknown service target')
                     # Only schema-bound service tools are exposed; reject flag targets.
                     if args != request['arguments']:
@@ -97,7 +164,7 @@ class Investigator:
                 if len(ids) != len(set(ids)):
                     raise ValueError('Duplicate hypotheses')
                 for h in result.hypotheses:
-                    if h.source != 'llm' or h.component not in {s.service for s in snapshot.services}:
+                    if h.source != 'llm' or h.component not in {s.service for s in [*snapshot.services, *snapshot.containers]}:
                         raise ValueError('Invalid hypothesis source or service')
                     if not h.supporting_evidence:
                         raise ValueError('No supporting evidence')
