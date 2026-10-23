@@ -21,6 +21,7 @@ VOLATILE = re.compile(r"\b[0-9a-f]{8,}\b|\b\d+(?:\.\d+)?\b|\d{4}-\d{2}-\d{2}[T ]
 
 
 LEVEL_FIELD = re.compile(r'"?\b(?:level|severity|lvl|loglevel)"?\s*[:=]\s*"?([A-Za-z]+)', re.IGNORECASE)
+WARNING_CLASS = re.compile(r"\b[A-Z]\w*Warning\b")
 LEADING = re.compile(r"^\W{0,3}(trace|debug|info|information|notice|warn|warning|error|fatal|critical)\b", re.IGNORECASE)
 
 
@@ -29,6 +30,8 @@ def level_of(text: str) -> str:
     any error-ish word in the line counts."""
     m = LEVEL_FIELD.search(text) or LEADING.search(text)
     word = m.group(1).lower() if m else None
+    if word is None and WARNING_CLASS.search(text):
+        return "WARN"          # e.g. Node's "MetadataLookupWarning: ... error ..." at startup
     if word is None:
         m = LEVEL.search(text)
         word = m.group(1).lower() if m else "info"

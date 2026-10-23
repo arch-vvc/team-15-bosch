@@ -131,6 +131,8 @@ def test_search_logs_counts_levels_and_masks(tb):
     ("level=error msg=boom", "ERROR"),
     ("panic: runtime error", "ERROR"),
     ("GET /api/products 200", "INFO"),
+    ("(node:1) MetadataLookupWarning: received unexpected error = All promises were rejected", "WARN"),
+    ('{"level":"error","msg":"DeprecationWarning ignored"}', "ERROR"),
 ])
 def test_level_detection(line, level):
     assert logs.level_of(line) == level
