@@ -2,14 +2,20 @@
 
 Rules-first implementation of the supplied architecture: alert → triage → dependency localization → rules → bounded LLM fallback → evidence validation → trusted remedy → human approval → Action API → recovery verification → report and verified memory.
 
-**Start all agent commands from `/Users/nryashaswiamrutha/Bosch_Hackathon`.** Python 3.11+ is required. The agent uses the Python standard library; no pip install is needed for these commands. The upstream application is a separate checkout in `opentelemetry-demo/`.
+**Start all agent commands from the repository root.** Python 3.11+ is required. Install the dependencies once (the Eyes tools in `agent/` need them):
+
+```sh
+python3.11 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
+```
+
+The upstream application is the `opentelemetry-demo/` submodule (`git submodule update --init`).
 
 ## 1. Run the complete demonstration now
 
 No API key, Docker containers or network access is needed for these synthetic exercises:
 
 ```sh
-cd /Users/nryashaswiamrutha/Bosch_Hackathon
+cd team-15-bosch
 python3.11 -m incident_zero simulate --exercise
 python3.11 -m incident_zero simulate --scenario combined --exercise
 python3.11 -m incident_zero simulate --scenario unknown --exercise
@@ -25,7 +31,7 @@ The first case should resolve after one simulated action. The combined case uses
 The upstream repository is already cloned in this workspace. For a fresh copy of the source archive, first run `git clone https://github.com/open-telemetry/opentelemetry-demo.git` from the extracted agent root. Open Docker Desktop, then in another terminal:
 
 ```sh
-cd /Users/nryashaswiamrutha/Bosch_Hackathon/opentelemetry-demo
+cd opentelemetry-demo
 docker compose --parallel 3 -f compose.yaml -f compose.observability.yaml up -d --no-build --wait --wait-timeout 180
 docker compose -f compose.yaml -f compose.observability.yaml ps -a
 ```
@@ -45,7 +51,7 @@ Put your key in the root `.env` file as `OPENAI_API_KEY=...`. Keep the configure
 Return to the agent root:
 
 ```sh
-cd /Users/nryashaswiamrutha/Bosch_Hackathon
+cd team-15-bosch
 python3.11 -m incident_zero doctor
 python3.11 -m incident_zero observe --service checkout
 python3.11 -m incident_zero investigate --service checkout --alert "Checkout errors" --container-health
@@ -95,11 +101,19 @@ The kill switch blocks new tool/model/action calls; it cannot cancel an already 
 - `reporting.py`: ledger-derived JSON/Markdown. Report facts are deterministic; optional LLM prose generation is not implemented.
 - `demo.py`, `evaluation.py`: transparent synthetic evaluation; `synthetic.py` retains transport-test fixtures.
 
+### Eyes tools (merged from `agent/`)
+
+- `eyes_tools.py`: seven more read-only tools backed by `agent/tools`, stored as ordinary evidence records: `read_service_health` (error ratio, p95, rate vs baseline), `read_operations` (per operation), `read_trace_errors` (where errors originate, top messages, one attribute value shared by most errors), `read_hop_latency` (client vs server time per hop), `read_onset`, `read_container_limits` (CPU and memory limits vs compose and baseline) and `read_deploy_history` (Docker events). The pipeline collects the first four for every service it visits and follows services where errors originate; the LLM may ask for any of them.
+- `config/rules.json` gains three rules built on them: `errors_originate_in_service`, `cpu_limit_lowered`, `memory_limit_lowered`.
+- `watch` without `--service` watches every service and container against the Eyes baseline (`python -m agent.eyes baseline`, no fault active), fires after two abnormal polls, and runs the pipeline on the most severe alert.
+- Flag redaction from `agent/tools/redact.py` now also covers this package: spans calling the flag service are dropped from trace projections, log bodies are masked, and `Store.add_evidence` masks and refuses any remaining flag data.
+- `python -m agent.eyes` still runs the Eyes checkpoint demo on its own; see `docs/eyes.md`.
+
 ```sh
-python3.11 -m unittest discover -s tests -v
+pytest -q
 ```
 
 Loopback HTTP tests require permission to bind local ports. See `docs/architecture.md` for the numbered diagram mapping and `docs/build-plan.md` for remaining integrations. All synthetic cases passing means the workflow behaved as expected, **not that all unknown faults were diagnosed or fixed**. Hidden-incident performance, real LLM quality, official scoring and live remedies remain unverified until the organizer interfaces, model access and running demo are available.
 
 
-Latest validation: **68 tests passed; 12/12 synthetic cases passed**. Docker is now running, and live checkout metrics, traces, logs and container health were verified. The latest model request returned HTTP 429 and safely escalated before a completion. See `docs/evaluation-note.md` for the limits of these results.
+Latest validation: **138 tests passed (after merging the Eyes tools); 12/12 synthetic cases passed**. Docker is now running, and live checkout metrics, traces, logs and container health were verified. The latest model request returned HTTP 429 and safely escalated before a completion. See `docs/evaluation-note.md` for the limits of these results.

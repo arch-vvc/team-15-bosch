@@ -33,6 +33,44 @@ def action_backend(args):
     return HttpActionBackend(json.loads(args.action_contract.read_text())) if args.action_contract else DisabledBackend()
 
 
+def watch_everything(args, store, model, tools):
+    """Eyes alert watcher: every service and container against the recorded baseline, two
+    consecutive abnormal polls to fire, then the full pipeline on the most severe alert."""
+    from agent import detect as eyes
+    from agent.tools.backends import BackendError
+    from incident_zero.tools import HEALTH_SERVICES
+
+    base = tools.eyes.baseline
+    if base is None:
+        raise ValueError("No baseline at state/baseline.json: run `python -m agent.eyes baseline` with no fault active")
+    streak, last_incident = {}, -float("inf")
+    for cycle in range(args.cycles):
+        if store.killed():
+            print("Watch stopped by kill switch")
+            break
+        try:
+            candidates = [a for a in eyes.poll(tools.eyes.backends, base, containers=args.container_health)
+                          if a.service in HEALTH_SERVICES]
+        except BackendError as exc:
+            print(json.dumps({"cycle": cycle + 1, "error": str(exc)}))
+            candidates = []
+        current = {(a.service, a.signal): a for a in candidates}
+        streak = {key: streak.get(key, 0) + 1 for key in current}
+        firing = [current[key] for key, n in streak.items() if n >= 2]
+        if firing and time.monotonic() - last_incident >= 300:
+            alert = eyes.pick(firing)
+            incident = Pipeline(store, tools, actions=action_backend(args).actions, model_factory=model).run(
+                {"service": alert.service, "summary": eyes.fmt_alert(alert), "source": "eyes_watcher"})
+            print(export_report(store, incident, args.reports).resolve())
+            print("State:", store.incident(incident)["state"])
+            last_incident, streak = time.monotonic(), {}
+        else:
+            print(json.dumps({"cycle": cycle + 1, "abnormal": [f"{a.service}:{a.signal}" for a in candidates]}))
+        if cycle + 1 < args.cycles:
+            time.sleep(args.interval)
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(description="Incident Zero: investigate with evidence; require approval for actions")
     parser.add_argument("--db", type=Path, default=Path("output/incidents.sqlite3"))
@@ -53,7 +91,9 @@ def main():
     investigation.add_argument("--reports", type=Path, default=Path("output/reports"))
     endpoints(investigation)
     watch = commands.add_parser("watch", help="Poll thresholds and investigate sustained alerts")
-    watch.add_argument("--service", choices=SERVICES, required=True)
+    watch.add_argument("--service", choices=SERVICES,
+                       help="Watch one service with fixed thresholds. Omit to watch every service and container "
+                            "against the Eyes baseline (python -m agent.eyes baseline)")
     watch.add_argument("--cycles", type=int, default=10)
     watch.add_argument("--interval", type=int, default=30)
     watch.add_argument("--model")
@@ -144,6 +184,8 @@ def main():
                 raise ValueError("Watch supports 1-120 cycles and 10-300 second intervals")
             model, tools = lambda: ResponsesModel(args.model), live_tools(args)
             tools.set_guard(store.killed)
+            if args.service is None:
+                return watch_everything(args, store, model, tools)
             streak = 0
             last_incident = -float("inf")
             for cycle in range(args.cycles):

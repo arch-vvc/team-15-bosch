@@ -5,6 +5,7 @@ import subprocess
 import time
 from datetime import datetime, timezone
 
+from agent.tools import redact
 from incident_zero.telemetry import SERVICES, LocalJsonClient, TelemetryError, observe
 
 HEALTH_SERVICES = (*SERVICES, "astronomy-db", "valkey-cart")
@@ -21,14 +22,18 @@ class LiveTools:
     mode = "live"
 
     def __init__(self, prometheus="http://localhost:9090", jaeger="http://localhost:8080/jaeger/ui", opensearch=None, container_health=False):
+        from incident_zero.eyes_tools import EYES_TOOLS, EyesTools  # imported here: eyes_tools imports this module
         self.prometheus = LocalJsonClient(prometheus)
         self.jaeger = LocalJsonClient(jaeger)
         self.logs = LocalJsonClient(opensearch) if opensearch else None
         self.container_health_enabled = container_health
+        self.eyes = EyesTools(docker_enabled=container_health, urls={"prometheus_url": prometheus, "jaeger_url": jaeger})
+        self.extra_tools = tuple(EYES_TOOLS)
         self.guard = lambda: False
 
     def set_guard(self, guard):
         self.guard = guard
+        self.eyes.guard = guard
         for client in (self.prometheus, self.jaeger, self.logs):
             if client is not None:
                 client.guard = guard
@@ -59,7 +64,7 @@ class LiveTools:
             if any(word in text.lower() for word in ("feature_flag", "feature flag", "flagd", "api_key", "password", "authorization", "card_number")):
                 continue
             observations.append({"log_id": hit.get("_id"), "timestamp": source.get("observedTimestamp"),
-                                 "body": text[:1500], "severity": source.get("severity", {}).get("text", source.get("severity.text")),
+                                 "body": redact.mask(text[:1500]), "severity": source.get("severity", {}).get("text", source.get("severity.text")),
                                  "trace_id": source.get("traceId")})
         return [record(service, "recent_logs", observations, self.logs.base_url + "/otel-logs-*/_search", end-lookback, end, query)]
 
@@ -99,6 +104,10 @@ class LiveTools:
         return [record(service, "container_resources", [usage], "docker://" + service + "/stats", end, end)]
 
     def call(self, name, service, lookback, end):
+        if name in self.extra_tools:
+            if not 60 <= lookback <= 3600:
+                raise ValueError("Invalid service or query window")
+            return self.eyes.call(name, service, lookback, end)
         if name not in {"inspect_service", "read_logs", "read_container_health", "read_resources"}:
             raise ValueError("Unknown read-only tool")
         allowed = HEALTH_SERVICES if name in {"read_container_health", "read_resources"} else SERVICES

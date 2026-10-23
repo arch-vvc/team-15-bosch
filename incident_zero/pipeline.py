@@ -6,6 +6,7 @@ from incident_zero.agent import Investigator, Budget
 from incident_zero.rules import signatures, dependencies, localize, fingerprint, checked, configured_signatures, rank_candidates
 from incident_zero.tools import HEALTH_SERVICES, record
 from incident_zero.telemetry import SERVICES
+from incident_zero.eyes_tools import EYES_TOOLS, PIPELINE_TOOLS, origin_services
 
 
 class Pipeline:
@@ -50,7 +51,11 @@ class Pipeline:
                 collect("read_resources", service)
                 if service in SERVICES:
                     collect("read_logs", service)
-                for _, peer in dependencies(rows):
+                for name in PIPELINE_TOOLS:
+                    if name in getattr(self.tools, "extra_tools", ()) and service in EYES_TOOLS[name][2]:
+                        rows += collect(name, service)
+                # follow call edges, and services whose own spans are where errors start
+                for peer in [p for _, p in dependencies(rows)] + origin_services(rows):
                     if peer not in seen and peer not in queue:
                         queue.append(peer)
             evidence = self.store.evidence(incident)

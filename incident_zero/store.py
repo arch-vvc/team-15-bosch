@@ -9,6 +9,8 @@ import time
 import uuid
 from pathlib import Path
 
+from agent.tools import redact
+
 
 def canonical(value):
     return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
@@ -54,7 +56,10 @@ class Store:
 
     def add_evidence(self, incident, record):
         self.incident(incident)
-        record = dict(record)
+        # last line of defence (agent/tools/redact.py): mask flag text, refuse anything left
+        record = redact.scrub(dict(record))
+        if leaks := redact.find_leaks(record):
+            raise ValueError(f"Flag data in evidence refused: {sorted(set(leaks))}")
         record["evidence_id"] = "ev_" + hashlib.sha256(canonical(record).encode()).hexdigest()[:20]
         with self.db:
             self.db.execute("INSERT OR IGNORE INTO evidence VALUES(?,?,?)", (record["evidence_id"], incident, canonical(record)))

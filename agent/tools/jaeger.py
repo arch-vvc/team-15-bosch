@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from agent import config
 from agent.contracts import Evidence, Fact
 from agent.tools import redact
-from agent.tools.backends import Backends
+from agent.tools.backends import Backends, BackendError
 
 
 def _tags(span: dict) -> dict:
@@ -136,7 +136,10 @@ def dependencies(b: Backends, lookback_min: int = 15, end: float | None = None) 
     Falls back to edges read from sampled frontend traces when Jaeger's dependency
     endpoint returns nothing."""
     end_ms = int((end if end is not None else b.now()) * 1000)
-    raw = redact.clean_edges(b.jaeger.dependencies(end_ms=end_ms, lookback_ms=lookback_min * 60_000))
+    try:
+        raw = redact.clean_edges(b.jaeger.dependencies(end_ms=end_ms, lookback_ms=lookback_min * 60_000))
+    except BackendError:
+        raw = []           # Jaeger v2 builds without the dependencies endpoint answer 404
     edges = sorted({(e["parent"], e["child"]) for e in raw if e.get("parent") != e.get("child")})
     if not edges:
         traces = _clean(b.jaeger.traces(service="frontend", lookback=f"{lookback_min}m", limit=50))

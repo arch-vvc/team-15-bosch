@@ -7,10 +7,10 @@ name = "incident-zero"
 version = "0.1.0"
 description = "Evidence-based AI incident investigation with human-approved remediation"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["httpx>=0.27", "pydantic>=2.6", "pyyaml>=6", "docker>=7"]
 
 [project.scripts]
 incident-zero = "incident_zero.__main__:main"
 
 [tool.setuptools.packages.find]
-include = ["incident_zero*"]
+include = ["incident_zero*", "agent*"]

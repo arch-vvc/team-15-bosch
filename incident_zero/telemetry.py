@@ -110,6 +110,14 @@ def metric_values(payload: dict) -> list[dict]:
     return values
 
 
+def _calls_flag_service(operation, tags) -> bool:
+    """A span that is a lookup against the flag service (flagd). Dropped: the agent must not
+    see flag evaluations, and they are never a cause it may act on."""
+    from agent.tools import redact
+    return redact.is_flag_system(operation) or any(
+        redact.is_flag_system(str(tags.get(k) or "")) for k in ("peer.service", "server.address", "rpc.service"))
+
+
 def trace_spans(payload: dict, service: str) -> list[dict]:
     if payload.get("errors"):
         raise TelemetryError("Jaeger reported a query error")
@@ -123,6 +131,8 @@ def trace_spans(payload: dict, service: str) -> list[dict]:
                 continue
             # Project only timing, identifiers and status; exclude feature-flag attributes and log payloads.
             tags = {tag.get("key"): tag.get("value") for tag in span.get("tags", [])}
+            if _calls_flag_service(span.get("operationName"), tags):
+                continue
             result.append({
                 "trace_id": trace.get("traceID"), "span_id": span.get("spanID"),
                 "service": service, "operation": span.get("operationName"),
@@ -166,6 +176,8 @@ def otlp_trace_spans(payload, service):
             continue
         attrs = {a.get("key"): a.get("value", {}).get("stringValue") for a in span.get("attributes", [])
                  if a.get("key") in {"peer.service", "server.address", "rpc.service"}}
+        if _calls_flag_service(span.get("name"), attrs):
+            continue
         start, end = int(span.get("startTimeUnixNano", 0)), int(span.get("endTimeUnixNano", 0))
         result.append({"trace_id": span.get("traceId"), "span_id": span.get("spanId"), "service": name,
             "operation": span.get("name"), "start_time_us": start / 1000, "duration_us": (end-start) / 1000,

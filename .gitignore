@@ -10,3 +10,9 @@ output/
 vendor/
 /opentelemetry-demo/
 config/*.local.json
+.pytest_cache/
+# per-laptop runtime output of the Eyes tools
+state/
+runs/
+recordings/
+KILL

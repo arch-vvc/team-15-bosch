@@ -25,8 +25,9 @@ def _ratio(a: Alert) -> float:
     return a.value / a.baseline if a.baseline else float("inf")
 
 
-def poll(b: Backends, baseline: Baseline) -> list[Alert]:
-    """Every abnormal (service, signal) right now, as candidate alerts."""
+def poll(b: Backends, baseline: Baseline, containers: bool = True) -> list[Alert]:
+    """Every abnormal (service, signal) right now, as candidate alerts. containers=False
+    skips Docker entirely (span metrics only)."""
     ts = b.now_dt()
     out: list[Alert] = []
     table = prometheus.health_table(b)
@@ -39,11 +40,11 @@ def poll(b: Backends, baseline: Baseline) -> list[Alert]:
             else:
                 out.append(Alert(service=svc, signal=signal, value=row[signal], baseline=base.get(signal) or 0.0, ts=ts))
     try:
-        containers = docker_state.container_table(b, baseline.containers, with_usage=False)
+        table = docker_state.container_table(b, baseline.containers, with_usage=False) if containers else []
     except BackendError:
-        containers = []
+        table = []
     a = config.thresholds()["anomaly"]
-    for c in containers:
+    for c in table:
         base = baseline.containers.get(c.service, {})
         compose_mb = config.services()["containers"].get(c.service, {}).get("mem_limit_mb")
         was_running = not baseline.containers or base.get("status") == "running"

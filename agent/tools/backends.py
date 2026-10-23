@@ -63,6 +63,10 @@ class Prometheus:
 
 
 class Jaeger:
+    """Jaeger's HTTP query API. Uses the classic /api/traces and falls back to /api/v3/traces
+    (OTLP JSON, newline-delimited) when the classic path answers 404, converting the result
+    to the classic shape so the tools only ever see one format."""
+
     def __init__(self, url: str, http: httpx.Client):
         self.url, self.http = url.rstrip("/"), http
 
@@ -71,6 +75,10 @@ class Jaeger:
             r = self.http.get(f"{self.url}/api/{path}", params=params)
             r.raise_for_status()
             return r.json().get("data") or []
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise NotFound(f"jaeger {path}: 404") from e
+            raise BackendError(f"jaeger {path}: {e}") from e
         except (httpx.HTTPError, ValueError) as e:
             raise BackendError(f"jaeger {path}: {e}") from e
 
@@ -86,13 +94,104 @@ class Jaeger:
             params["tags"] = json.dumps(tags)
         if start_us is not None and end_us is not None:
             params |= {"start": start_us, "end": end_us, "lookback": "custom"}
-        return self._get("traces", params)
+        try:
+            return self._get("traces", params)
+        except NotFound:
+            return self._traces_v3(service, operation, tags, lookback, limit, start_us, end_us)
+
+    def _traces_v3(self, service, operation, tags, lookback, limit, start_us, end_us) -> list[dict]:
+        if start_us is None or end_us is None:
+            end_us = int(datetime.now(timezone.utc).timestamp() * 1e6)
+            start_us = end_us - _seconds(lookback) * 1_000_000
+        iso = lambda us: datetime.fromtimestamp(us / 1e6, timezone.utc).isoformat()
+        params = {"query.serviceName": service, "query.startTimeMin": iso(start_us),
+                  "query.startTimeMax": iso(end_us), "query.searchDepth": limit}
+        if operation:
+            params["query.operationName"] = operation
+        try:
+            r = self.http.get(f"{self.url}/api/v3/traces", params=params)
+            if r.status_code == 404:
+                return []          # v3 answers 404 when nothing matched
+            r.raise_for_status()
+            frames = [json.loads(line) for line in r.text.splitlines() if line.strip()]
+        except (httpx.HTTPError, ValueError) as e:
+            raise BackendError(f"jaeger v3 traces: {e}") from e
+        traces = otlp_to_traces(frames)
+        if tags and tags.get("error") == "true":
+            traces = [t for t in traces if any(
+                (t["processes"].get(s["processID"]) or {}).get("serviceName") == service
+                and any(tag["key"] == "error" for tag in s["tags"]) for s in t["spans"])]
+        return traces[:limit]
 
     def dependencies(self, end_ms: int, lookback_ms: int) -> list[dict]:
         return self._get("dependencies", {"endTs": end_ms, "lookback": lookback_ms})
 
     def services(self) -> list[str]:
         return self._get("services", {})
+
+
+class NotFound(BackendError):
+    pass
+
+
+def _seconds(lookback: str) -> int:
+    unit = {"s": 1, "m": 60, "h": 3600}.get(lookback[-1:], None)
+    return int(lookback[:-1]) * unit if unit else 900
+
+
+SPAN_KINDS = {1: "internal", 2: "server", 3: "client", 4: "producer", 5: "consumer",
+              "SPAN_KIND_INTERNAL": "internal", "SPAN_KIND_SERVER": "server", "SPAN_KIND_CLIENT": "client",
+              "SPAN_KIND_PRODUCER": "producer", "SPAN_KIND_CONSUMER": "consumer"}
+
+
+def _otlp_value(v: dict) -> Any:
+    for key in ("stringValue", "boolValue", "doubleValue"):
+        if key in v:
+            return v[key]
+    if "intValue" in v:
+        return int(v["intValue"])
+    if "arrayValue" in v:
+        return [_otlp_value(x) for x in v["arrayValue"].get("values", [])]
+    return None
+
+
+def _otlp_attrs(items: list[dict] | None) -> list[dict]:
+    return [{"key": a.get("key"), "value": _otlp_value(a.get("value") or {})} for a in items or []]
+
+
+def otlp_to_traces(frames: list[dict]) -> list[dict]:
+    """Jaeger v3 OTLP frames -> the classic Jaeger trace shape (traceID, spans, processes)."""
+    traces: dict[str, dict] = {}
+    for frame in frames:
+        for rs in (frame.get("result") or {}).get("resourceSpans") or []:
+            resource = {a["key"]: a["value"] for a in _otlp_attrs((rs.get("resource") or {}).get("attributes"))}
+            service = resource.get("service.name") or "?"
+            for scope in rs.get("scopeSpans") or []:
+                for sp in scope.get("spans") or []:
+                    tid = sp.get("traceId")
+                    trace = traces.setdefault(tid, {"traceID": tid, "spans": [], "processes": {}})
+                    pid = next((p for p, proc in trace["processes"].items() if proc["serviceName"] == service), None)
+                    if pid is None:
+                        pid = f"p{len(trace['processes']) + 1}"
+                        trace["processes"][pid] = {"serviceName": service, "tags": []}
+                    tags = _otlp_attrs(sp.get("attributes")) + [{"key": "span.kind", "value": SPAN_KINDS.get(sp.get("kind"), "")}]
+                    status = sp.get("status") or {}
+                    if status.get("code") in (2, "STATUS_CODE_ERROR"):
+                        tags += [{"key": "error", "value": True}, {"key": "otel.status_code", "value": "ERROR"}]
+                    if status.get("message"):
+                        tags.append({"key": "otel.status_description", "value": status["message"]})
+                    start, end = int(sp.get("startTimeUnixNano") or 0), int(sp.get("endTimeUnixNano") or 0)
+                    trace["spans"].append({
+                        "traceID": tid, "spanID": sp.get("spanId"), "operationName": sp.get("name", ""),
+                        "references": [{"refType": "CHILD_OF", "traceID": tid, "spanID": sp["parentSpanId"]}]
+                        if sp.get("parentSpanId") else [],
+                        "startTime": start // 1000, "duration": max(0, end - start) // 1000, "processID": pid,
+                        "tags": tags,
+                        "logs": [{"timestamp": int(ev.get("timeUnixNano") or 0) // 1000,
+                                  "fields": [{"key": "event", "value": ev.get("name")}] + _otlp_attrs(ev.get("attributes"))}
+                                 for ev in sp.get("events") or []],
+                    })
+    return list(traces.values())
 
 
 def _docker_client():
@@ -250,8 +349,10 @@ class Backends:
         return datetime.fromtimestamp(self.now(), timezone.utc)
 
     @classmethod
-    def live(cls) -> "Backends":
-        ep = config.endpoints()
+    def live(cls, prometheus_url: str | None = None, jaeger_url: str | None = None,
+             opensearch_url: str | None = None) -> "Backends":
+        ep = config.endpoints() | {k: v for k, v in (("prometheus_url", prometheus_url), ("jaeger_url", jaeger_url),
+                                                    ("opensearch_url", opensearch_url)) if v is not None}
         http = httpx.Client(timeout=ep.get("http_timeout_s", 10))
         docker_state = Docker()
         os_url = ep.get("opensearch_url") or ""

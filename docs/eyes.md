@@ -6,7 +6,7 @@ Checkpoint 1 asks for: *tools for logs, metrics, traces and deploy history; the 
 
 zsh does not treat `#` as a comment in pasted commands, so the blocks below have none.
 
-Setup and tests (56 tests, no Docker needed):
+Setup and tests (no Docker needed):
 ```bash
 cd ~/Desktop/team-15-bosch
 git fetch && git checkout feature/eyes

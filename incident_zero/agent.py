@@ -29,7 +29,8 @@ def function(name, description, properties, required=None):
                            "required": list(properties) if required is None else required, "additionalProperties": False}}
 
 
-def tool_definitions(allow_actions=True):
+def tool_definitions(allow_actions=True, extra=()):
+    from incident_zero.eyes_tools import DESCRIPTIONS, EYES_TOOLS
     tools = [function(name, description, {
         "service": {"type": "string", "enum": list(HEALTH_SERVICES if name in {"read_container_health", "read_resources"} else SERVICES)},
         "lookback": {"type": "integer", "minimum": 60, "maximum": 3600},
@@ -39,6 +40,10 @@ def tool_definitions(allow_actions=True):
         ("read_container_health", "Read projected container state, OOM and restart information."),
         ("read_resources", "Read a bounded Docker CPU and memory utilization snapshot."),
     )]
+    tools += [function(name, DESCRIPTIONS[name], {
+        "service": {"type": "string", "enum": list(EYES_TOOLS[name][2])},
+        "lookback": {"type": "integer", "minimum": 60, "maximum": 3600},
+    }) for name in extra if name in EYES_TOOLS]
     claim = {"type": "object", "additionalProperties": False, "required": ["evidence_id", "observation_index", "field", "value"], "properties": {
         "evidence_id": {"type": "string"}, "observation_index": {"type": "integer", "minimum": 0},
         "field": {"type": "string"}, "value": {"type": ["string", "number", "boolean", "null"]}}}
@@ -127,7 +132,7 @@ class Investigator:
                 remaining = self.budget.seconds - (time.monotonic() - started)
                 if remaining <= 0 or tokens >= self.budget.total_tokens or len(json.dumps(conversation)) > 180000:
                     raise ValueError("Investigation time, context or token budget exhausted")
-                response = self.model.respond(INSTRUCTIONS, conversation, tool_definitions(allow_actions=bool(self.actions)), min(self.budget.output_tokens_per_turn, self.budget.total_tokens - tokens), min(45, remaining))
+                response = self.model.respond(INSTRUCTIONS, conversation, tool_definitions(allow_actions=bool(self.actions), extra=getattr(self.tools, "extra_tools", ())), min(self.budget.output_tokens_per_turn, self.budget.total_tokens - tokens), min(45, remaining))
                 usage = response.get("usage") or {}
                 tokens += int(usage.get("total_tokens", usage.get("input_tokens", 0) + usage.get("output_tokens", 0)))
                 output = response.get("output", [])
