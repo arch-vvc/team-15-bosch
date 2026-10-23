@@ -473,3 +473,28 @@ def test_escalation_report_explains_itself_and_keeps_the_llm_transcript(tmp_path
     assert [p["state"] for p in report["diagnosis_path"]] == ["UNKNOWN"]
     assert report["evidence"] and "shipping p95_ms" in md
     assert "503" in json.loads((out / "llm.json").read_text())[0]["error"]
+
+
+def test_checkout_script_reports_what_a_customer_sees():
+    import httpx
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("checkouts", Path(__file__).parents[1] / "scripts" / "checkouts.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    failing = {"on": False}
+
+    def shop(request):
+        body = json.loads(request.content)
+        if request.url.path == "/api/cart":
+            assert body["item"]["quantity"] == 1 and body["userId"]
+            return httpx.Response(200, json={})
+        assert request.url.path == "/api/checkout" and body["creditCard"] and body["userId"]
+        if failing["on"]:
+            return httpx.Response(500, text="failed to charge card: Payment request failed. Invalid token.")
+        return httpx.Response(200, json={"orderId": "abc"})
+
+    http = httpx.Client(transport=httpx.MockTransport(shop))
+    assert mod.checkout(http, "http://shop", "0PUK6V6EV0") == (True, "order abc")
+    failing["on"] = True
+    good, detail = mod.checkout(http, "http://shop", "0PUK6V6EV0")
+    assert not good and "HTTP 500" in detail and "Payment request failed" in detail
