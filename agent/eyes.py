@@ -37,17 +37,19 @@ def _baseline(b: Backends, args, offset_if_missing: int) -> baseline_mod.Baselin
     path = Path(args.baseline)
     if path.exists() and not args.replay:
         return baseline_mod.Baseline.load(path)
-    print(f"no baseline at {path}; computing one from the {offset_if_missing} min before now ...", file=sys.stderr)
+    print(f"no baseline at {path}; computing a temporary one from the {offset_if_missing} min before now "
+          f"(not saved; run `python -m agent.eyes baseline` with no fault active to save one) ...", file=sys.stderr)
     base = baseline_mod.compute(b, end_offset_min=offset_if_missing)
     _warn(base)
-    if not args.replay:
-        base.save(path)
     return base
 
 
 def _warn(base: baseline_mod.Baseline) -> None:
     for w in base.warnings:
         print(f"  warning: {w}", file=sys.stderr)
+    if any("already has error_ratio" in w for w in base.warnings):
+        print("  a fault looks active in the baseline window: turn every flag off, wait 10 min, "
+              "then run `python -m agent.eyes baseline` again", file=sys.stderr)
 
 
 def _write_run(args, alert: Alert | None, snap, ledger: Ledger, summary: str) -> Path:
