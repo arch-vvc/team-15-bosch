@@ -4,18 +4,25 @@ Checkpoint 1 asks for: *tools for logs, metrics, traces and deploy history; the 
 
 ## Run it on the laptop
 
+zsh does not treat `#` as a comment in pasted commands, so the blocks below have none.
+
+Setup and tests (56 tests, no Docker needed):
 ```bash
 cd ~/Desktop/team-15-bosch
 git fetch && git checkout feature/eyes
 python3.11 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-pytest -q                                   # 56 tests, no Docker needed
+pytest -q
+```
 
-# no fault active, load generator running for at least 10 minutes
-python -m agent.eyes baseline               # saves state/baseline.json
-python -m agent.eyes snapshot               # should report nothing abnormal
+With no fault active and the load generator running for at least 10 minutes, record the baseline (saved to `state/baseline.json`), then check that a snapshot reports nothing abnormal:
+```bash
+python -m agent.eyes baseline
+python -m agent.eyes snapshot
+```
 
-# the checkpoint: start watching, then inject the practice incident in another terminal
+The checkpoint: start watching, then inject the practice incident in another terminal:
+```bash
 python -m agent.eyes --record recordings/practice1.jsonl watch
 ```
 

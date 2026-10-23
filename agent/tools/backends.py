@@ -38,12 +38,18 @@ class Prometheus:
         self.url, self.http = url.rstrip("/"), http
 
     def _get(self, path: str, params: dict) -> Any:
-        try:
-            r = self.http.get(f"{self.url}/api/v1/{path}", params=params)
-            r.raise_for_status()
-            body = r.json()
-        except (httpx.HTTPError, ValueError) as e:
-            raise BackendError(f"prometheus {path}: {e}") from e
+        for attempt in (1, 2):
+            try:
+                r = self.http.get(f"{self.url}/api/v1/{path}", params=params)
+                r.raise_for_status()
+                body = r.json()
+                break
+            except httpx.TimeoutException as e:
+                # a busy Prometheus on a small laptop is often slow once, then fine
+                if attempt == 2:
+                    raise BackendError(f"prometheus {path}: timed out twice ({e})") from e
+            except (httpx.HTTPError, ValueError) as e:
+                raise BackendError(f"prometheus {path}: {e}") from e
         if body.get("status") != "success":
             raise BackendError(f"prometheus {path}: {body.get('error')}")
         return body["data"]["result"]

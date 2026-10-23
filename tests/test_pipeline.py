@@ -252,3 +252,17 @@ def test_services_yaml_matches_compose():
     shop = {n for n, s in yaml.safe_load((root / "compose.yaml").read_text())["services"].items()
             if any("OTEL_SERVICE_NAME" in str(e) for e in s.get("environment") or [])}
     assert shop - {"flagd", "flagd-ui", "telemetry-docs"} == set(config.shop_services())
+
+
+def test_fixture_replays_every_tool():
+    """The committed recording answers one call of every tool, for demos without Docker."""
+    import pathlib
+
+    from tests.make_fixture import EXAMPLE_CALLS, OUT
+
+    assert {name for name, _ in EXAMPLE_CALLS} == set(registry.READ_ONLY_TOOLS)
+    tb = Toolbox(Backends.replay(OUT), Ledger(), baseline_mod.Baseline.model_validate(
+        {"taken_at": 0, "window_min": 10, "services": {}, "containers": {}, "edges": []}))
+    for name, args in EXAMPLE_CALLS:
+        out = registry.call(tb, name, args)
+        assert all("error" not in ev["query"] for ev in out["evidence"]), (name, out)

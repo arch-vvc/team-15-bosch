@@ -14,4 +14,4 @@ opensearch_fields:
   severity: severity.text
   body: body
   trace_id: traceId
-http_timeout_s: 10
+http_timeout_s: 30       # Prometheus with 200 MB on an 8 GB laptop can be slow
