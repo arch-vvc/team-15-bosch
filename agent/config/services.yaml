@@ -1,0 +1,35 @@
+# Containers the Eyes tools look at, with the limits from the demo's compose files
+# (opentelemetry-demo @ ad06a6f). A live limit below these means starvation was injected.
+# tests/test_config.py checks this file against compose.yaml when the submodule is present.
+#
+# role:  shop      = has spans, so it appears in span metrics and Jaeger
+#        datastore = no spans of its own; seen through its callers and docker
+#        infra     = telemetry pipeline; if it dies, everything goes quiet
+# Flag services (flagd, flagd-ui) are deliberately absent: never read them.
+
+containers:
+  ad:               {role: shop,      mem_limit_mb: 300}
+  cart:             {role: shop,      mem_limit_mb: 160}
+  checkout:         {role: shop,      mem_limit_mb: 20}
+  currency:         {role: shop,      mem_limit_mb: 20}
+  email:            {role: shop,      mem_limit_mb: 100}
+  frontend:         {role: shop,      mem_limit_mb: 250}
+  frontend-proxy:   {role: shop,      mem_limit_mb: 90}
+  image-provider:   {role: shop,      mem_limit_mb: 120}
+  load-generator:   {role: shop,      mem_limit_mb: 1500}
+  payment:          {role: shop,      mem_limit_mb: 140}
+  product-catalog:  {role: shop,      mem_limit_mb: 20}
+  quote:            {role: shop,      mem_limit_mb: 40}
+  recommendation:   {role: shop,      mem_limit_mb: 500}
+  shipping:         {role: shop,      mem_limit_mb: 20}
+  astronomy-db:     {role: datastore, mem_limit_mb: 80}
+  valkey-cart:      {role: datastore, mem_limit_mb: 20}
+  otel-collector:   {role: infra,     mem_limit_mb: 400}
+  prometheus:       {role: infra,     mem_limit_mb: 200}
+  jaeger:           {role: infra,     mem_limit_mb: 1200}
+  opensearch:       {role: infra,     mem_limit_mb: 1024}
+
+# Which shop service talks to which datastore, so a dead datastore can be tied to its caller.
+datastore_callers:
+  valkey-cart: [cart]
+  astronomy-db: [product-catalog]
