@@ -1,0 +1,9 @@
+# Conservative local policy; no organiser API behavior is assumed.
+services: [ad, cart, checkout, currency, email, frontend, frontend-proxy, image-provider, payment, product-catalog, recommendation, shipping, valkey-cart, astronomy-db, load-generator]
+stateful: [valkey-cart, astronomy-db]
+allowlist: [restart_service, throttle_load, scale_service]
+remedies:
+  memory_leak: restart_service
+  container_down: restart_service
+  crash_loop: restart_service
+  traffic_flood: throttle_load
