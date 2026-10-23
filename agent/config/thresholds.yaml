@@ -15,7 +15,7 @@ anomaly:                   # used by the alert watcher, triage and verify alike
   p95_min_delta_ms: 100
   req_rate_mult: 3.0       # traffic flood: req_rate > max(3 x baseline, baseline + 5 req/s)
   req_rate_min_delta: 5
-  min_req_rate: 0.05       # ignore services quieter than this (req/s) for ratio checks
+  min_req_rate: 0.01       # ignore services quieter than this (req/s); checkout and payment run at ~0.03 on a laptop
   silent_ratio: 0.1        # had traffic at baseline, now below 10 % of it = missing telemetry
   cpu_limit_ratio: 0.9     # live cpu limit below 90 % of baseline = starvation
   mem_limit_ratio: 0.9     # live memory limit below 90 % of compose value = starvation
