@@ -125,7 +125,10 @@ def container_facts(c: ContainerStatus, base: dict, detail: bool) -> list[Fact]:
         facts.append(Fact(service=c.service, signal="cpu_limit", value=c.cpu_limit, baseline=base_cpu,
                           direction="down" if cpu_lowered else "same"))
     if c.mem_used is not None and c.mem_limit:
-        near = c.mem_used >= a["mem_near_limit"] * c.mem_limit
+        # near the limit AND grown since baseline: a JVM that always fills its heap is normal
+        base_mem = base.get("mem_used")
+        grew = base_mem is None or c.mem_used > base_mem + a["mem_growth_min"] * c.mem_limit
+        near = c.mem_used >= a["mem_near_limit"] * c.mem_limit and grew
         if near or detail:
             facts.append(Fact(service=c.service, signal="mem_used", value=c.mem_used, baseline=base.get("mem_used"),
                               direction="up" if near else None))

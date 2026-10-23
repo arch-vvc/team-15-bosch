@@ -19,7 +19,8 @@ anomaly:                   # used by the alert watcher, triage and verify alike
   silent_ratio: 0.1        # had traffic at baseline, now below 10 % of it = missing telemetry
   cpu_limit_ratio: 0.9     # live cpu limit below 90 % of baseline = starvation
   mem_limit_ratio: 0.9     # live memory limit below 90 % of compose value = starvation
-  mem_near_limit: 0.9      # memory used above 90 % of the limit
+  mem_near_limit: 0.9      # memory used above 90 % of the limit ...
+  mem_growth_min: 0.05     # ... and at least 5 % of the limit above its baseline use
   cpu_near_limit: 0.9      # cpu used above 90 % of a cpu limit (pinned at the cap)
   cpu_used_mult: 3.0       # or, with no limit: cpu used > max(3 x baseline, baseline + 0.5 cores)
   cpu_used_min_delta: 0.5

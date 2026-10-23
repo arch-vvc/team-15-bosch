@@ -426,3 +426,24 @@ def test_gemini_moves_to_the_next_model_when_one_is_busy(monkeypatch):
     adapter = gemini.GeminiAdapter("k", http=httpx.Client(transport=httpx.MockTransport(handler)))
     adapter._post({})
     assert asked == ["gemini-3.5-flash-lite", "gemini-flash-lite-latest"] and adapter.last_model == "gemini-flash-lite-latest"
+
+
+def test_memory_that_was_already_high_at_baseline_is_not_a_leak():
+    def slow_everything(w):
+        for svc in w.services.values():
+            svc["p95"] = 900.0
+    w = fakes.World()
+    w.services = fakes.healthy_services()
+    w.usage["ad"] = (0.05, 275.0)            # ad fills its 300 MB heap: normal for the JVM
+    tb, snap, _ = snapshot_for(w, after_baseline=slow_everything)
+    d = Engine().diagnose(snap, tb.ledger)
+    assert "memory_leak" not in {h.cause for h in d.hypotheses}
+
+    def grow(w):
+        slow_everything(w)
+        w.usage["ad"] = (0.05, 295.0)
+    w2 = fakes.World()
+    w2.services = fakes.healthy_services()
+    w2.usage["ad"] = (0.05, 200.0)
+    tb, snap, _ = snapshot_for(w2, after_baseline=grow)
+    assert ("ad", "memory_leak") in {(h.component, h.cause) for h in Engine().diagnose(snap, tb.ledger).hypotheses}
