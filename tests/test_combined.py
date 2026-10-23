@@ -498,3 +498,16 @@ def test_checkout_script_reports_what_a_customer_sees():
     failing["on"] = True
     good, detail = mod.checkout(http, "http://shop", "0PUK6V6EV0")
     assert not good and "HTTP 500" in detail and "Payment request failed" in detail
+
+
+def test_rules_catch_payment_errors_from_traces_before_metrics_arrive():
+    """Seen live: at triage time payment's error ratio had not reached Prometheus yet, but
+    traces already showed payment's Charge failing repeatedly."""
+    def only_latency_so_far(w):
+        w.services = fakes.healthy_services()      # error ratios still look healthy in metrics
+        w.services["checkout"]["p95"] = 900.0      # what alerted: checkout got slower
+    tb, snap, _ = snapshot_for(after_baseline=only_latency_so_far)   # traces: 6 failing payment charges
+    d = Engine().diagnose(snap, tb.ledger)
+    assert d.state == "CONFIDENT"
+    assert (d.hypotheses[0].component, d.hypotheses[0].cause) == ("payment", "service_errors")
+    assert validate.check(d, tb.ledger).ok

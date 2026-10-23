@@ -75,7 +75,7 @@ def snapshot(tb: Toolbox, alert: Alert | None = None) -> TriageSnapshot:
         # one search usually covers the whole call chain (checkout's error traces include
         # payment's spans), so skip services an earlier search already showed errors for
         if svc in config.shop_services() and svc not in traced:
-            for ev in tb.search_traces(svc):
+            for ev in tb.search_traces(svc, lookback=config.thresholds()["traces"]["triage_lookback"]):
                 traced.add(svc)
                 traced.update(f.service for f in ev.facts if f.signal == "error_count" and f.value)
                 for f in ev.facts:

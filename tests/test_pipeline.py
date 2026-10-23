@@ -268,13 +268,13 @@ def test_fixture_replays_every_tool():
         assert all("error" not in ev["query"] for ev in out["evidence"]), (name, out)
 
 
-def test_latency_needs_four_polls_errors_need_two(world_backends, base):
+def test_latency_needs_six_polls_errors_need_two(world_backends, base):
     b, w = world_backends
     w.services = fakes.healthy_services()
     w.services["recommendation"]["p95"] = 3700.0
     seen = []
     alert = detect.watch(b, base, max_polls=10, sleep=no_sleep, on_poll=lambda ts, c, s: seen.append(1))
-    assert alert.signal == "p95_ms" and len(seen) == 4
+    assert alert.signal == "p95_ms" and len(seen) == 6
     w.services = fakes.payment_failure_services()
     seen.clear()
     alert = detect.watch(b, base, max_polls=10, sleep=no_sleep, on_poll=lambda ts, c, s: seen.append(1))

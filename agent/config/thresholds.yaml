@@ -28,7 +28,8 @@ anomaly:                   # used by the alert watcher, triage and verify alike
 alert:
   poll_interval_s: 15
   consecutive_points: 2
-  consecutive_points_latency: 4   # p95-only alerts need a full minute: one slow burst on a laptop is not an incident
+  consecutive_points_latency: 6   # p95-only alerts need 90 s: laptop latency is noisy, and error alerts
+                                  # (whose span metrics land 60-90 s late) should win when both are present
 
 verify:
   window_s: 180            # span metrics lag by up to the rate window, so allow 3 minutes
@@ -36,7 +37,8 @@ verify:
   healthy_points: 3        # consecutive healthy polls needed to call it recovered
 
 traces:
-  lookback: 15m
+  lookback: 15m             # default for a manual or LLM search
+  triage_lookback: 5m       # during an incident: recent errors only, not an earlier, already-fixed fault
   limit: 20
   concentration_share: 0.9 # one attribute value covers >= 90 % of errors
   concentration_min_errors: 5

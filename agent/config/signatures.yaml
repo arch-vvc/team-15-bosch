@@ -51,6 +51,15 @@ signatures:
       - {signal: error_ratio, direction: up}
     missing: [whether the errors share one attribute value, the service's own error logs]
 
+  - id: errors_originate_in_service_traces
+    cause: service_errors
+    confidence: 0.8
+    summary: In the last few minutes of traces this service's own spans are the deepest failing ones, repeatedly; its callers' errors are knock-on effects. (Traces arrive in seconds; the error-ratio metric lags by a minute or more.)
+    all:
+      - {signal: error_origin, min: 5}
+      - {signal: error_count, min: 5}
+    missing: [the error ratio from metrics, once it arrives]
+
   - id: cpu_limit_lowered
     cause: cpu_starvation
     confidence: 0.85
