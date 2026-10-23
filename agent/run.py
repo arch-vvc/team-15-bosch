@@ -12,7 +12,7 @@ dry run, action safety (C) -> approval, report, memory (E), driven by agent.main
 Needs a baseline first: python -m agent.eyes baseline (no fault active).
 Actions use a preview-only adapter until the organisers' Action API exists: the approval
 gate is real, but execute refuses and the incident escalates.
-Output goes to runs/<time>/: report.json, report.md, ledger.json.
+Output goes to runs/<time>/: report.json, report.md, ledger.json, and llm.json when the LLM was asked.
 """
 from __future__ import annotations
 
@@ -69,11 +69,36 @@ def choose_model(which: str = "auto", name: str | None = None):
     return NoModel()
 
 
+class Transcript:
+    """Wraps a model adapter and keeps every request's tool list and every reply, so an
+    LLM turn can be explained afterwards (runs/<time>/llm.json)."""
+
+    def __init__(self, model):
+        self.model, self.turns = model, []
+        self.label = getattr(model, "label", "none")
+
+    async def complete(self, **kw):
+        entry = {"tools_offered": sorted((kw.get("tools") or {}).keys())}
+        try:
+            reply = await self.model.complete(**kw)
+        except Exception as e:
+            entry["error"] = f"{type(e).__name__}: {str(e)[:200]}"
+            self.turns.append(entry)
+            raise
+        entry["model"] = getattr(self.model, "last_model", None) or getattr(self.model, "model", None)
+        entry["reply"] = reply
+        self.turns.append(entry)
+        return reply
+
+
 def handle(b, base, alert, approval, model=None, out_dir=Path("runs"), verification_sleep=None):
-    d = dependencies(b, base, alert, approval, model=model, verification_sleep=verification_sleep)
+    transcript = Transcript(model or NoModel())
+    d = dependencies(b, base, alert, approval, model=transcript, verification_sleep=verification_sleep)
     incident, (report_json, report_md) = asyncio.run(run(alert, d))
     out = out_dir / datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     out.mkdir(parents=True, exist_ok=True)
+    if transcript.turns:
+        (out / "llm.json").write_text(json.dumps(transcript.turns, indent=2, default=str))
     (out / "report.json").write_text(json.dumps(report_json, indent=2))
     (out / "report.md").write_text(report_md)
     d.ledger.save(out / "ledger.json")

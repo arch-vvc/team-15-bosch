@@ -101,9 +101,11 @@ class Investigator:
             if worker_gate.locked() or (self._eyes_ledger is not None and ledger is not self._eyes_ledger):
                 raise ValueError('Eyes ledger mismatch or previous backend read still active')
             return await asyncio.wait_for(self._loop(snapshot, ledger, diagnosis), self.total_s)
-        except (Exception, asyncio.TimeoutError):
+        except (Exception, asyncio.TimeoutError) as exc:
+            # keep the cause visible in the report; adapters never put credentials in messages
+            detail = f'{type(exc).__name__}: {str(exc)[:200]}' if str(exc) else type(exc).__name__
             return Diagnosis(state='UNKNOWN', hypotheses=[], selected_id=None,
-                             reason='Investigation failed or exceeded safety budget')
+                             reason=f'Investigation failed or exceeded safety budget ({detail})')
         finally:
             investigation_gate.release()
 

@@ -21,8 +21,16 @@ PREVENTION = {
 def build(incident: Incident, ledger) -> tuple[dict, str]:
     final = incident.diagnoses[-1] if incident.diagnoses else None
     chosen = next((h for h in final.hypotheses if h.id == final.selected_id), None) if final else None
-    cited = sorted(set((chosen.supporting_evidence + chosen.contradicting_evidence) if chosen else []),
-                   key=lambda e: int(e[1:]) if e[1:].isdigit() else 0)
+    if chosen:
+        cited = set(chosen.supporting_evidence + chosen.contradicting_evidence)
+    else:
+        # nothing selected: show what was seen about the alerting service, so an escalation
+        # still hands the human the evidence
+        svc = incident.alert.service
+        cited = {eid for eid in incident.snapshot.evidence_ids if ledger.has(eid)
+                 and any(f.service == svc and f.direction in ("up", "down", "absent") for f in ledger.get(eid).facts)}
+        cited |= {eid for h in (final.hypotheses if final else []) for eid in h.supporting_evidence}
+    cited = sorted(cited, key=lambda e: int(e[1:]) if e[1:].isdigit() else 0)
     evidence = [ledger.get(eid).model_dump(mode="json") for eid in cited if ledger.has(eid)]
     actions = []
     for proposal, approval, result, verified in incident.actions:
@@ -37,6 +45,9 @@ def build(incident: Incident, ledger) -> tuple[dict, str]:
             "component": chosen.component, "cause": chosen.cause, "confidence": chosen.confidence,
             "source": chosen.source, "reason": final.reason},
         "diagnosis_state": final.state if final else None,
+        "diagnosis_reason": final.reason if final else None,
+        "diagnosis_path": [{"state": d.state, "reason": d.reason,
+                            "source": d.hypotheses[0].source if d.hypotheses else None} for d in incident.diagnoses],
         "hypotheses": [h.model_dump(mode="json") for h in (final.hypotheses if final else [])],
         "evidence": evidence,
         "actions": actions,
@@ -58,14 +69,16 @@ def markdown(r: dict) -> str:
         lines += [f"**{rc['component']}**: {rc['cause']} (confidence {rc['confidence']:.2f}, from {rc['source']})", "",
                   rc["reason"], ""]
     else:
-        lines += [f"Not established (diagnosis state {r['diagnosis_state']}); escalated with the evidence below.", ""]
+        lines += [f"Not established (diagnosis state {r['diagnosis_state']}); escalated with the evidence below.", "",
+                  f"Why: {r['diagnosis_reason']}", ""]
     others = [h for h in r["hypotheses"] if not rc or h["component"] != rc["component"] or h["cause"] != rc["cause"]]
     if others:
         lines += ["Other hypotheses considered: " + ", ".join(
             f"{h['id']} {h['component']}/{h['cause']} {h['confidence']:.2f}" for h in others), ""]
+    focus = rc["component"] if rc else a["service"]
     lines += ["## Evidence", ""]
     for ev in r["evidence"]:
-        about = [f for f in ev["facts"] if rc and f["service"] == rc["component"]]
+        about = [f for f in ev["facts"] if f["service"] == focus]
         for f in (about or ev["facts"])[:4]:
             base = f" (baseline {f['baseline']})" if f["baseline"] is not None else ""
             scope = f" [{f['scope']}]" if f["scope"] else ""

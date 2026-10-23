@@ -277,7 +277,7 @@ def test_replay_runs_of_the_combined_agent(tmp_path, monkeypatch, fixture, answe
     assert incident.outcome == outcome
     report = json.loads((out / "report.json").read_text())
     assert report["root_cause"]["cause"] == cause
-    assert {p.name for p in out.iterdir()} == {"report.json", "report.md", "ledger.json"}
+    assert {p.name for p in out.iterdir()} == {"report.json", "report.md", "ledger.json"}   # no LLM turn here
 
 
 def test_kill_file_stops_the_action_before_the_dry_run(tmp_path, monkeypatch):
@@ -447,3 +447,29 @@ def test_memory_that_was_already_high_at_baseline_is_not_a_leak():
     w2.usage["ad"] = (0.05, 200.0)
     tb, snap, _ = snapshot_for(w2, after_baseline=grow)
     assert ("ad", "memory_leak") in {(h.component, h.cause) for h in Engine().diagnose(snap, tb.ledger).hypotheses}
+
+
+def test_escalation_report_explains_itself_and_keeps_the_llm_transcript(tmp_path, monkeypatch):
+    """Unexplained slowness -> rules unsure -> the model fails -> the report still says why and
+    shows the evidence, and the model turn is saved."""
+    monkeypatch.chdir(tmp_path)
+    b, world = fakes.backends()
+    world.services = fakes.healthy_services()
+    base = baseline_mod.compute(b, end_offset_min=10)
+    world.services["shipping"]["p95"] = 900.0
+    alert = detect.watch(b, base, max_polls=6, sleep=lambda s: None)
+
+    class Broken:
+        label = "broken"
+
+        async def complete(self, **kw):
+            raise RuntimeError("Gemini API failed: gemini-3.5-flash-lite:503")
+
+    incident, md, out = handle(b, base, alert, AutoReject(), model=Broken(), out_dir=tmp_path / "runs",
+                               verification_sleep=lambda s: None)
+    report = json.loads((out / "report.json").read_text())
+    assert incident.outcome == "escalated" and report["root_cause"] is None
+    assert "503" in report["diagnosis_reason"]
+    assert [p["state"] for p in report["diagnosis_path"]] == ["UNKNOWN"]
+    assert report["evidence"] and "shipping p95_ms" in md
+    assert "503" in json.loads((out / "llm.json").read_text())[0]["error"]
